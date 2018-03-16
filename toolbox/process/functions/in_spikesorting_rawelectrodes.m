@@ -1,4 +1,4 @@
-function sFiles = in_spikesorting_rawelectrodes( varargin )
+function sFiles = in_spikesorting_rawelectrodes( sInput )
 % IN_SPIKESORTING_RAWELECTRODES: Loads and creates if needed separate raw
 % electrode files for spike sorting purposes.
 %
@@ -24,13 +24,6 @@ function sFiles = in_spikesorting_rawelectrodes( varargin )
 %
 % Authors: Konstantinos Nasiotis, 2018; Martin Cousineau, 2018
 
-sInput = varargin{1};
-if nargin < 2
-    ram = 1e9; % 1 GB
-else
-    ram = varargin{2};
-end
-
 protocol = bst_get('ProtocolInfo');
 parentPath = bst_fullfile(bst_get('BrainstormTmpDir'), ...
                        'Unsupervised_Spike_Sorting', ...
@@ -42,70 +35,23 @@ if ~exist(parentPath, 'dir')
     mkdir(parentPath);
 end
 
-% Check whether the electrode files already exist
-ChannelMat = in_bst_channel(sInput.ChannelFile);
-numChannels = length(ChannelMat.Channel);
-missingFile = 0;
-sFiles = {};
-for iChannel = 1:numChannels
-    chanFile = bst_fullfile(parentPath, ['raw_elec' num2str(iChannel) '.mat']);
-    if ~exist(chanFile, 'file')
-        missingFile = 1;
-    else
-        sFiles{end+1} = chanFile;
-    end
-end
-if ~missingFile
-    return;
-else
-    % Clear any remaining intermediate file
-    for iFile = 1:length(sFiles)
-        delete(sFiles{iFile});
-    end
-end
-
-% Otherwise, generate all of them again.
 DataMat = in_bst_data(sInput.FileName, 'F');
+ChannelMat = in_bst_channel(sInput.ChannelFile);
 sFile = DataMat.F;
+numChannels = length(ChannelMat.Channel);
 sr = sFile.prop.sfreq;
 sFiles = {};
-samples = [0,0];
-max_samples = ram / 8 / numChannels;
-total_samples = sFile.prop.samples(2);
-num_segments = ceil(total_samples / max_samples);
-num_samples_per_segment = ceil(total_samples / num_segments);
-bst_progress('start', 'Spike-sorting', 'Demultiplexing raw file...', 0, num_segments + numChannels);
+bst_progress('start', 'Spike-sorting', 'Demultiplexing raw file...', 0, numChannels);
 
-% Read data in segments
-for iSegment = 1:num_segments
-    samples(1) = (iSegment - 1) * num_samples_per_segment;
-    if iSegment < num_segments
-        samples(2) = iSegment * num_samples_per_segment - 1;
-    else
-        samples(2) = total_samples;
+for iChannel = 1:numChannels
+    chanFile = bst_fullfile(parentPath, ['raw_elec' num2str(sFile.header.ChannelID(iChannel)) '.mat']);
+    
+    % If the channel file doesn't exist, create on the fly
+    if ~exist(chanFile, 'file')
+        data = in_fread(sFile, ChannelMat, 1, [], iChannel);
+        save(chanFile, 'data', 'sr');
     end
     
-    F = in_fread(sFile, ChannelMat, [], samples);
-
-    % Append segment to individual channel file
-    for iChannel = 1:numChannels
-        chanFile = bst_fullfile(parentPath, ['raw_elec' num2str(iChannel)]);
-        electrode_data = F(iChannel,:);
-        fid = fopen([chanFile '.bin'], 'a');
-        fwrite(fid, electrode_data, 'double');
-        fclose(fid);
-    end
-    bst_progress('inc', 1);
-end
-
-% Convert channel files to Matlab
-for iChannel = 1:numChannels
-    chanFile = bst_fullfile(parentPath, ['raw_elec' num2str(iChannel)]);
-    fid = fopen([chanFile '.bin'], 'rb');
-    data = fread(fid, 'double');
-    fclose(fid);
-    save([chanFile '.mat'], 'data', 'sr');
-    file_delete([chanFile '.bin'], 1 ,3);
-    sFiles{end+1} = [chanFile '.mat'];
+    sFiles{end+1} = chanFile;
     bst_progress('inc', 1);
 end
