@@ -1,10 +1,12 @@
-function MRI = in_mri(MriFile, FileFormat, isInteractive)
+function [MRI, vox2ras] = in_mri(MriFile, FileFormat, isInteractive, isNormalize)
 % IN_MRI: Detect file format and load MRI file.
 % 
 % USAGE:  in_mri(MriFile, FileFormat='ALL')
 % INPUT:
-%     - MriFile    : full path to a MRI file
-%     - FileFormat : Format of the input file (default = 'ALL')
+%     - MriFile       : full path to a MRI file
+%     - FileFormat    : Format of the input file (default = 'ALL')
+%     - isInteractive : 0 or 1
+%     - isNormalize   : If 1, converts values to uint8 and scales between 0 and 1
 % OUTPUT:
 %     - MRI         : Standard brainstorm structure for MRI volumes
 
@@ -29,7 +31,7 @@ function MRI = in_mri(MriFile, FileFormat, isInteractive)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -46,6 +48,9 @@ function MRI = in_mri(MriFile, FileFormat, isInteractive)
 % Authors: Francois Tadel, 2008-2016
 
 % Parse inputs
+if (nargin < 4) || isempty(isNormalize)
+    isNormalize = 1;
+end
 if (nargin < 3) || isempty(isInteractive)
     isInteractive = 1;
 end
@@ -59,6 +64,7 @@ if isempty(ByteOrder)
 end
 % Initialize returned variables
 MRI = [];
+vox2ras = [];
 
 % ===== GUNZIP FILE =====
 % Get file extension
@@ -97,7 +103,6 @@ if ismember(FileFormat, {'ALL', 'ALL-MNI'})
 end
 
 % ===== LOAD MRI =====
-vox2ras = [];
 % Switch between file formats
 switch (FileFormat)   
     case 'CTF'
@@ -126,7 +131,7 @@ switch (FileFormat)
             MRI = load(MriFile);
         end
     otherwise
-        error('RAW format not yet supported');
+        error(['Unknown format: ' FileFormat]);
 end
 
 % If nothing was loaded
@@ -137,7 +142,7 @@ end
 
 %% ===== NORMALIZE VALUES =====
 % Normalize if the cube is not already in uint8 (and if not loading an atlas)
-if ~strcmpi(FileFormat, 'ALL-MNI') && ~isa(MRI.Cube, 'uint8')
+if isNormalize && ~strcmpi(FileFormat, 'ALL-MNI') && ~isa(MRI.Cube, 'uint8')
     % Convert to double for calculations
     MRI.Cube = double(MRI.Cube);
     % Start values at zeros
@@ -217,21 +222,15 @@ end
 
 %% ===== SAVE MNI TRANSFORMATION =====
 if isMni && ~isempty(vox2ras) && (~isfield(MRI, 'NCS') || ~isfield(MRI.NCS, 'R') || isempty(MRI.NCS.R))
+    % 2nd operation: Change reference from (0,0,0) to (.5,.5,.5)
+    vox2ras = vox2ras * [1 0 0 -.5; 0 1 0 -.5; 0 0 1 -.5; 0 0 0 1];
+    % 1st operation: Convert from MRI(mm) to voxels
+    vox2ras = vox2ras * diag(1 ./ [MRI.Voxsize, 1]);
     % Copy MNI transformation to output structure
     MRI.NCS.R = vox2ras(1:3,1:3);
     MRI.NCS.T = vox2ras(1:3,4);
-    % Adjust for unknown reason (???)
-    MRI.NCS.T = MRI.NCS.T - [1; 1; 1];
-    % MNI coordinates for the AC/PC/IH fiducials
-    AC = [0,   3,  -4] ./ 1000;
-    PC = [0, -25,  -2] ./ 1000;
-    IH = [0, -10,  60] ./ 1000;
-    Origin = [0, 0, 0];
-    % Convert: MNI (meters) => MRI (millimeters)
-    MRI.NCS.AC     = cs_convert(MRI, 'mni', 'mri', AC) .* 1000;
-    MRI.NCS.PC     = cs_convert(MRI, 'mni', 'mri', PC) .* 1000;
-    MRI.NCS.IH     = cs_convert(MRI, 'mni', 'mri', IH) .* 1000;
-    MRI.NCS.Origin = cs_convert(MRI, 'mni', 'mri', Origin) .* 1000;
+    % Compute default fiducials positions based on MNI coordinates
+    MRI = mri_set_default_fid(MRI);
 end
 
 

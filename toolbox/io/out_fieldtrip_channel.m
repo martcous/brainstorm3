@@ -8,7 +8,7 @@ function [elec, grad] = out_fieldtrip_channel(ChannelFile, isIncludeRef)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -50,7 +50,7 @@ iEeg = channel_find(ChannelMat.Channel, 'EEG,SEEG,ECOG');
 iMeg = channel_find(ChannelMat.Channel, 'MEG');
 iRef = channel_find(ChannelMat.Channel, 'MEG REF');
 if isIncludeRef
-    iMegAll = [iRef, iMeg];
+    iMegAll = [iMeg, iRef];
 else
     iMegAll = iMeg;
 end
@@ -92,7 +92,7 @@ if ~isempty(iMeg)
     chantype = cell(1,length(iMegAll));
     for i = 1:length(iMegAll)
         switch (ChannelMat.Channel(iMegAll(i)).Type)
-            case 'MEG',
+            case 'MEG'
                 chantype{i} = 'megaxial';
             case 'MEG MAG'
                 chantype{i} = 'megmag';

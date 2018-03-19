@@ -1,10 +1,7 @@
-function OutputFiles = import_raw(RawFiles, FileFormat, iSubject, ImportOptions)
+function OutputFiles = import_raw(RawFiles, FileFormat, iSubject, ImportOptions, DateOfStudy)
 % IMPORT_RAW: Create a link to a raw file in the Brainstorm database.
 %
-% USAGE:  OutputFiles = import_raw(RawFiles, FileFormat, iSubject, ImportOptions)
-%         OutputFiles = import_raw(RawFiles, FileFormat, iSubject)
-%         OutputFiles = import_raw(RawFiles, FileFormat)
-%         OutputFiles = import_raw()
+% USAGE:  OutputFiles = import_raw(RawFiles=[ask], FileFormat=[ask], iSubject=[], ImportOptions=[], DateOfStudy=[])
 %
 % INPUTS:
 %     - RawFiles      : Full path to the file to import in database
@@ -12,12 +9,13 @@ function OutputFiles = import_raw(RawFiles, FileFormat, iSubject, ImportOptions)
 %     - iSubject      : Subject indice in which to import the raw file
 %     - ImportOptions : Structure that describes how to import the recordings
 %       => Fields used: ChannelAlign, ChannelReplace, DisplayMessages, EventsMode, EventsTrackMode
+%     - DateOfStudy   : String 'dd-MMM-yyyy', force Study entries created in the database to use this acquisition date
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -31,9 +29,12 @@ function OutputFiles = import_raw(RawFiles, FileFormat, iSubject, ImportOptions)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 % 
-% Authors: Francois Tadel, 2009-2016
+% Authors: Francois Tadel, 2009-2018
 
 %% ===== PARSE INPUT =====
+if (nargin < 5) || isempty(DateOfStudy)
+    DateOfStudy = [];
+end
 if (nargin < 4) || isempty(ImportOptions)
     ImportOptions = db_template('ImportOptions');
 end
@@ -83,7 +84,7 @@ if isempty(RawFiles)
     % Process the selected directories :
     %    1) If they are .ds/ directory with .meg4 and .res4 files : keep them as "files to open"
     %    2) Else : add all the data files they contains (subdirectories included)
-    RawFiles = io_expand_filenames(FileFilter, RawFiles);
+    RawFiles = file_expand_selection(FileFilter, RawFiles);
     if isempty(RawFiles)
         error(['No data ' FileFormat ' file in the selected directories.']);
     end
@@ -116,6 +117,7 @@ end
 
 %% ===== IMPORT =====
 iOutputStudy = [];
+isSSP = 0;
 % Loop on the files to import
 for iFile = 1:length(RawFiles)
     % ===== OPENING FILE =====
@@ -193,11 +195,21 @@ for iFile = 1:length(RawFiles)
                 curPath = bst_fullfile(ProtocolInfo.STUDIES, bst_fileparts(sExistStudy.FileName));
                 curPath = file_unique(curPath);
                 [tmp__, ConditionName] = bst_fileparts(curPath, 1);
+                % Save it in the updated name in the "condition" field
+                sFile.condition = strrep(ConditionName, '@raw', '');
             end
         end
     end
+    % Creation date: use input value, or try to get it from the sFile structure
+    if ~isempty(DateOfStudy)
+        studyDate = DateOfStudy;
+    elseif isfield(sFile, 'acq_date') && ~isempty(sFile.acq_date)
+        studyDate = sFile.acq_date;
+    else
+        studyDate = [];
+    end
     % Create output condition
-    iOutputStudy = db_add_condition(sSubject.Name, ConditionName);
+    iOutputStudy = db_add_condition(sSubject.Name, ConditionName, [], studyDate);
     if isempty(iOutputStudy)
         error('Folder could not be created : "%s/%s".', bst_fileparts(sSubject.FileName), ConditionName);
     end
@@ -243,10 +255,19 @@ for iFile = 1:length(RawFiles)
         end
         % Add channel file to database
         [ChannelFile, ChannelMat, ImportOptions.ChannelReplace, ImportOptions.ChannelAlign, Modality] = db_set_channel(iChannelStudy, ChannelMat, ImportOptions.ChannelReplace, ImportOptions.ChannelAlign);
+        % If loading SEEG or ECOG data: change the sensor type
+        if ismember(FileFormat, {'SEEG-ALL', 'ECOG-ALL'})
+            Mod = strrep(FileFormat, '-ALL', '');
+            process_channel_setseeg('Compute', ChannelFile, Mod);
+        end
         % Display the registration if this was skipped in db_set_channel
         if (ImportOptions.ChannelAlign == 0) && (ImportOptions.DisplayMessages) && ~isempty(Modality)
             bst_memory('UnloadAll', 'Forced');
             channel_align_manual(ChannelFile, Modality, 0);
+        end
+        % If there are existing SSP in this file: notice the user
+        if isfield(ChannelMat, 'Projector') && ~isempty(ChannelMat.Projector)
+            isSSP = 1;
         end
     end
     
@@ -300,6 +321,25 @@ if ~isempty(iOutputStudy)
     panel_protocols('SelectStudyNode', iOutputStudy);
     % Save database
     db_save();
+end
+
+% If some SSP files where present in the imported files, give the user a notice
+if isSSP
+    strWarning = ['The files you imported include SSP/ICA projectors.' 10 10 ...
+                  'Review them before processing the files:' 10 ...
+                  'tab Record > menu Artifacts > Select active projectors.'];
+    % Non-iteractive: Display message in command window
+    if ~ImportOptions.DisplayMessages 
+        disp(['BST> ' strrep(strWarning, 10, [10, 'BST> '])]);
+    % Interactive, one file: Open the SSP selection window
+    elseif (length(OutputFiles) == 1)
+        java_dialog('msgbox', strWarning);
+        bst_memory('LoadDataFile', OutputFiles{1});
+        panel_ssp_selection('OpenRaw');
+    % Interactive, multiple file: Message box
+    else
+        java_dialog('msgbox', strWarning);
+    end
 end
 
 bst_progress('stop');

@@ -7,7 +7,7 @@ function varargout = process_corr1n( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -152,7 +152,7 @@ function OPTIONS = GetConnectOptions(sProcess, sInputA) %#ok<DEFNU>
     % Get process name
     OPTIONS.ProcessName = func2str(sProcess.Function);
     % Connectivity type: [1xN] or [NxN]
-    isConnNN = ismember(OPTIONS.ProcessName, {'process_corr1n', 'process_cohere1n', 'process_granger1n', 'process_spgranger1n', 'process_plv1n', 'process_corr1n_time', 'process_cohere1n_time'});
+    isConnNN = ismember(OPTIONS.ProcessName, {'process_corr1n', 'process_cohere1n', 'process_granger1n', 'process_spgranger1n', 'process_plv1n', 'process_corr1n_time', 'process_cohere1n_time', 'process_pte1n'});
     
     % === TIME WINDOW ===
     if isfield(sProcess.options, 'timewindow') && isfield(sProcess.options.timewindow, 'Value') && iscell(sProcess.options.timewindow.Value) && ~isempty(sProcess.options.timewindow.Value)

@@ -10,6 +10,7 @@ function bst_set( varargin )
 %    - bst_set('BrainstormDbDir',   BrainstormDbDir)
 %    - bst_set('LastUsedDirs',      sDirectories)
 %    - bst_set('FieldTripDir',      FieldTripDir)
+%    - bst_set('SpmDir',            SpmDir)
 %
 % ====== PROTOCOLS ====================================================================
 %    - bst_set('iProtocol',         iProtocol)
@@ -32,6 +33,7 @@ function bst_set( varargin )
 %    - bst_set('AutoUpdates',  isAutoUpdates)
 %    - bst_set('ExpertMode',   isExpertMode)
 %    - bst_set('DisplayGFP',   isDisplayGFP)
+%    - bst_set('DownsampleTimeSeries',  isDownsampleTimeSeries)
 %    - bst_set('GraphicsSmoothing',     isGraphicsSmoothing)
 %    - bst_set('ForceMatCompression',   isForceCompression)
 %    - bst_set('IgnoreMemoryWarnings',  isIgnoreMemoryWarnings)
@@ -71,6 +73,7 @@ function bst_set( varargin )
 %    - bst_set('DigitizeOptions',       DigitizeOptions)
 %    - bst_set('ReadOnly',              ReadOnly)
 %    - bst_set('LastPsdDisplayFunction', LastPsdDisplayFunction)
+%    - bst_set('PlotlyCredentials',     Username, ApiKey, Domain)
 %
 % SEE ALSO bst_get
 
@@ -78,7 +81,7 @@ function bst_set( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -236,16 +239,40 @@ switch contextName
         GlobalData.Preferences.(contextName).(Modality) = ElectrodeConf;
         
     case {'UniformizeTimeSeriesScales', 'FlipYAxis', 'AutoScaleY', 'ShowXGrid', 'ShowYGrid', 'Resolution', 'AutoUpdates', 'ExpertMode', 'DisplayGFP', 'ForceMatCompression', ...
-          'GraphicsSmoothing', 'DisableOpenGL', 'InterfaceScaling', 'TSDisplayMode', 'UseSigProcToolbox', 'LastUsedDirs', 'DefaultFormats', ...
+          'GraphicsSmoothing', 'DownsampleTimeSeries', 'DisableOpenGL', 'InterfaceScaling', 'TSDisplayMode', 'UseSigProcToolbox', 'LastUsedDirs', 'DefaultFormats', ...
           'BFSProperties', 'ImportDataOptions', 'ImportEegRawOptions', 'RawViewerOptions', 'TopoLayoutOptions', ...
           'StatThreshOptions', 'ContactSheetOptions', 'ProcessOptions', 'BugReportOptions', 'DefaultSurfaceDisplay', ...
           'MagneticExtrapOptions', 'MriOptions', 'NodelistOptions', 'IgnoreMemoryWarnings', ...
           'TimefreqOptions_morlet', 'TimefreqOptions_hilbert', 'TimefreqOptions_fft', 'TimefreqOptions_psd', 'TimefreqOptions_plv', ...
-          'OpenMEEGOptions', 'DigitizeOptions', 'CustomColormaps', 'FieldTripDir', 'GridOptions_headmodel', 'GridOptions_dipfit', 'LastPsdDisplayFunction'}
+          'OpenMEEGOptions', 'DigitizeOptions', 'CustomColormaps', 'FieldTripDir', 'SpmDir', 'GridOptions_headmodel', 'GridOptions_dipfit', 'LastPsdDisplayFunction'}
         GlobalData.Preferences.(contextName) = contextValue;
 
     case 'ReadOnly'
         GlobalData.DataBase.isReadOnly = contextValue;
+    
+    case 'PlotlyCredentials'
+        if length(varargin) ~= 4
+            error('Invalid call to bst_set.');
+        end
+        [username, apiKey, domain] = varargin{2:4};
+        
+        if isempty(domain)
+            % Default Plot.ly server
+            domain = 'http://plot.ly';
+        end
+        
+        % Plotly needs a URL with HTTP and no trailing slash.
+        if strfind(domain, 'https://')
+            domain = strrep(domain, 'https://', 'http://');
+        elseif isempty(strfind(domain, 'http://'))
+            domain = ['http://', domain];
+        end
+        if domain(end) == '/'
+            domain = domain(1:end-1);
+        end
+        
+        saveplotlycredentials(username, apiKey);
+        saveplotlyconfig(domain);
         
 %% ==== ERROR ====
     otherwise

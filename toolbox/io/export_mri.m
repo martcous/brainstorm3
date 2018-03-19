@@ -12,7 +12,7 @@ function export_mri( BstMriFile, OutputMriFile )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -37,15 +37,21 @@ if (nargin < 2)
 end
 
 % ===== LOAD MRI FILE =====
-bst_progress('start', 'Export MRI', 'Loading input file'); 
+% Show progress bar
+isProgress = bst_progress('isVisible');
+if ~isProgress
+    bst_progress('start', 'Export MRI', 'Loading input file');
+end
+% Load MRI
 if ischar(BstMriFile)
     sMri = in_mri_bst(BstMriFile);
 else
     sMri = BstMriFile;
     BstMriFile = [];
 end
-bst_progress('stop'); 
-
+if ~isProgress
+    bst_progress('stop'); 
+end
 
 % ===== SELECT OUTPUT FILE =====
 if isempty(OutputMriFile)
@@ -95,7 +101,9 @@ end
 % ===== SAVE MRI =====
 [OutputPath, OutputBase, OutputExt] = bst_fileparts(OutputMriFile);
 % Show progress bar
-bst_progress('start', 'Export MRI', ['Export MRI to file "' [OutputBase, OutputExt] '"...']);
+if ~isProgress
+    bst_progress('start', 'Export MRI', ['Export MRI to file "' [OutputBase, OutputExt] '"...']);
+end
 % Switch between file formats
 switch lower(OutputExt)
     case '.ima'
@@ -111,8 +119,9 @@ switch lower(OutputExt)
         error(['Unsupported file extension : "' OutputExt '"']);
 end
 % Hide progress bar
-bst_progress('stop');
-
+if ~isProgress
+    bst_progress('stop');
+end
 
 
 

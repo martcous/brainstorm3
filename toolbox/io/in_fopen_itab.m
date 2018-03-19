@@ -7,7 +7,7 @@ function [sFile, ChannelMat] = in_fopen_itab(DataFile)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -21,7 +21,7 @@ function [sFile, ChannelMat] = in_fopen_itab(DataFile)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2015
+% Authors: Francois Tadel, 2015-2018
         
 
 %% ===== READ HEADER =====
@@ -140,6 +140,8 @@ sFile.prop.times   = sFile.prop.samples ./ sFile.prop.sfreq;
 sFile.prop.nAvg    = 1;
 % No info on bad channels
 sFile.channelflag = ChannelFlag;
+% Acquisition date
+sFile.acq_date = str_date(hdr.date);
 
 
 %% ===== EVENTS =====

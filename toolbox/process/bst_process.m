@@ -17,7 +17,7 @@ function varargout = bst_process( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -31,7 +31,7 @@ function varargout = bst_process( varargin )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2010-2016; Martin Cousineau, 2017
+% Authors: Francois Tadel, 2010-2018; Martin Cousineau, 2017
 
 eval(macro_method);
 end
@@ -264,7 +264,7 @@ function [sInputs, sInputs2] = Run(sProcesses, sInputs, sInputs2, isReport)
             continue;
         end
         % Import -> import: Do not update the input
-        if isequal(OutputFiles, {'import'});
+        if isequal(OutputFiles, {'import'})
             continue;
         end
         % Get new inputs structures
@@ -572,11 +572,13 @@ function OutputFile = ProcessFilter(sProcess, sInput)
         % Full output filename
         RawFileOut = bst_fullfile(newStudyPath, [rawBaseOut '.bst']);
         RawFileFormat = 'BST-BIN';
+        % Get input study (to copy the creation date)
+        sInputStudy = bst_get('AnyFile', sInput.FileName);
 
         % Get new condition name
         [tmp, ConditionName] = bst_fileparts(newStudyPath, 1);
         % Create output condition
-        iOutputStudy = db_add_condition(sInput.SubjectName, ConditionName);
+        iOutputStudy = db_add_condition(sInput.SubjectName, ConditionName, [], sInputStudy.DateOfStudy);
         if isempty(iOutputStudy)
             bst_report('Error', sProcess, sInput, ['Output folder could not be created:' 10 newPath]);
             return;
@@ -1875,7 +1877,7 @@ function [sInput, nSignals, iRows] = LoadInputFile(FileName, Target, TimeWindow,
                 % Get the row names
                 sInput.RowNames = {ChannelMat.Channel(iRows).Name};
 
-            case {'results', 'link'}
+            case {'results', 'link', 'presults'}
                 % Norm/absolue values of the sources 
                 if OPTIONS.isNorm && isfield(sMat, 'ImageGridAmp') && ~isempty(sMat.ImageGridAmp)
                     sMat = process_source_flat('Compute', sMat, 'rms');
@@ -2024,7 +2026,11 @@ function [sInput, nSignals, iRows] = LoadInputFile(FileName, Target, TimeWindow,
     % Other values to return
     sInput.Time    = sMat.Time;
     sInput.Comment = sMat.Comment;
-    sInput.nAvg    = sMat.nAvg;
+    if isfield(sMat, 'nAvg') && ~isempty(sMat.nAvg)
+        sInput.nAvg = sMat.nAvg;
+    else
+        sInput.nAvg = 1;
+    end
     % Count output signals
     if ~isempty(sInput.ImagingKernel) 
         nSignals = size(sInput.ImagingKernel, 1);
@@ -2101,6 +2107,21 @@ function [OutputFiles, OutputFiles2] = CallProcess(sProcess, sInputs, sInputs2, 
     % Get files
     if ~isempty(sInputs2) && ~isstruct(sInputs2)
         sInputs2 = GetInputStruct(sInputs2);
+    end
+    % Remove the options that are not matching the type of the inputs
+    if isfield(sProcess, 'options') && ~isempty(sProcess.options) && isstruct(sProcess.options)
+        optNames = fieldnames(sProcess.options);
+        for iOpt = 1:length(optNames)
+            if ~isfield(sProcess.options.(optNames{iOpt}), 'InputTypes')
+                continue;
+            elseif ismember(sInputs(1).FileType, sProcess.options.(optNames{iOpt}).InputTypes)
+                continue;
+            elseif ~isempty(sInputs2) && ismember(sInputs2(1).FileType, sProcess.options.(optNames{iOpt}).InputTypes)
+                continue;
+            else
+                sProcess.options = rmfield(sProcess.options, optNames{iOpt});
+            end
+        end
     end
     % Get options
     for i = 1:2:length(varargin)

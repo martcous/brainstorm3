@@ -12,7 +12,7 @@ function [sFile, ChannelMat] = in_fopen_cnt(DataFile, ImportOptions)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -26,7 +26,7 @@ function [sFile, ChannelMat] = in_fopen_cnt(DataFile, ImportOptions)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2009-2014
+% Authors: Francois Tadel, 2009-2018
         
 %% ===== PARSE INPUTS =====
 if (nargin < 2) || isempty(ImportOptions)
@@ -56,6 +56,8 @@ sFile.prop.nAvg    = 1;
 % Get bad channels
 sFile.channelflag = ones(length(hdr.electloc),1);
 sFile.channelflag([hdr.electloc.bad] == 1) = -1;
+% Acquisition date
+sFile.acq_date = str_date(char(hdr.data.date(:)'));
 
 
 %% ===== EVENTS LIST =====   

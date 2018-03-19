@@ -7,7 +7,7 @@ function F = in_fread_spm(sFile, SamplesBounds, iChannels)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -50,4 +50,8 @@ end
 % Read data
 F = sFile.header.file_array(iChannels, iTimes);
 
+% Apply gains
+if isfield(sFile.header, 'gain') && (size(sFile.header.gain,1) == sFile.header.nChannels)
+    F = bst_bsxfun(@times, F, sFile.header.gain(iChannels));
+end
 

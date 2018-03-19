@@ -15,7 +15,7 @@ function [ExportFile, sFileOut] = export_data(DataFile, ChannelMat, ExportFile, 
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -183,7 +183,10 @@ elseif isempty(FileFormat)
     end
 end
 % Show progress bar
-bst_progress('start', 'Export EEG/MEG recordings', 'Exporting file...');
+isProgress = bst_progress('isVisible');
+if ~isProgress
+    bst_progress('start', 'Export EEG/MEG recordings', 'Exporting file...');
+end
 % Option for input raw file
 if isRawIn
     ImportOptions = db_template('ImportOptions');
@@ -227,7 +230,9 @@ if isRawIn && isRawOut
     nSamples = sFileOut.prop.samples(2) - sFileOut.prop.samples(1) + 1;
     nBlocks = ceil(nSamples / EpochSize);
     % Show progress bar
-    bst_progress('start', 'Export EEG/MEG recordings', 'Exporting file...', 0, nBlocks);
+    if ~isProgress
+        bst_progress('start', 'Export EEG/MEG recordings', 'Exporting file...', 0, nBlocks);
+    end
     % Copy files by block
     for iBlock = 1:nBlocks
         % Get sample indices
@@ -237,7 +242,9 @@ if isRawIn && isRawOut
         % Save to output file
         sFileOut = out_fwrite(sFileOut, ChannelMat, 1, SamplesBounds, iChannels, F);
         % Increase progress bar
-        bst_progress('inc', 1);
+        if ~isProgress
+            bst_progress('inc', 1);
+        end
     end
 
 % ===== SAVE FULL FILES =====
@@ -269,10 +276,6 @@ else
                 ftData = out_fieldtrip_data(DataMat, ChannelMat, [], 1);
                 bst_save(ExportFile, ftData, 'v6');
             case 'EEG-CARTOOL-EPH'
-                % Removing the EDF/BDF/KDF annotation channels
-                if ~isempty(iAnnot)
-                    F(iAnnot,:) = [];
-                end
                 % Get sampling rate
                 samplingFreq = round(1/(DataMat.Time(2) - DataMat.Time(1)));
                 % Write header : nb_electrodes, nb_time, sampling_freq
@@ -282,7 +285,6 @@ else
             case {'ASCII-SPC', 'ASCII-CSV', 'ASCII-SPC-HDR', 'ASCII-CSV-HDR', 'EXCEL'}
                 % Removing the EDF/BDF/KDF annotation channels
                 if ~isempty(iAnnot)
-                    F(iAnnot,:) = [];
                     ChannelMat.Channel(iAnnot) = [];
                 end
                 % Save data
@@ -294,7 +296,9 @@ else
 end
     
 % Hide progress bar
-bst_progress('stop');
+if ~isProgress
+    bst_progress('stop');
+end
 
 end
 

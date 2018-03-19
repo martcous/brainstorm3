@@ -10,7 +10,7 @@ function varargout = process_cena_update( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -35,8 +35,8 @@ function sProcess = GetDescription() %#ok<DEFNU>
     % Description the process
     sProcess.Comment     = 'CENA : Install/Update';
     sProcess.Category    = 'Custom';
-    sProcess.SubGroup    = 'Microstates';
-    sProcess.Index       = 850;
+    sProcess.SubGroup    = {'External', 'Microstates'};
+    sProcess.Index       = 2000;
     sProcess.isSeparator = 0;
     sProcess.Description = 'https://hpenlaboratory.uchicago.edu/page/cena';
     % Definition of the input accepted by this process

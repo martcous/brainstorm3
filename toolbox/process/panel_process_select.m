@@ -11,7 +11,7 @@ function varargout = panel_process_select(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -465,13 +465,40 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
                     jParent = jPopup;
                 % Else: create a sub-menu for the sub-group
                 else
-                    hashKey = strrep(file_standardize(sProcesses(iProc).SubGroup), '-', '_');
+                    % Create hash key
+                    if iscell(sProcesses(iProc).SubGroup)
+                        if (length(sProcesses(iProc).SubGroup) ~= 2)
+                            error('When SubGroup is a cell array, it must have two entries (menu and submenu).');
+                        end
+                        hashKey = sprintf('%s_%s', sProcesses(iProc).SubGroup{1}, sProcesses(iProc).SubGroup{2});
+                    else
+                        hashKey = sProcesses(iProc).SubGroup;
+                    end
+                    hashKey = strrep(file_standardize(hashKey), '-', '_');
                     % Get existing menu
                     if isfield(hashGroups, hashKey)
                         jParent = hashGroups.(hashKey);
                     % Menu not created yet: create it
                     else
-                        jParent = gui_component('Menu', jPopup, [], sProcesses(iProc).SubGroup, [], []);
+                        % Menu+submenu
+                        if iscell(sProcesses(iProc).SubGroup)
+                            hashParent = strrep(file_standardize(sProcesses(iProc).SubGroup{1}), '-', '_');
+                            if isfield(hashGroups, hashParent)
+                                jParentTop = hashGroups.(hashParent);
+                            else
+                                jParentTop = gui_component('Menu', jPopup, [], sProcesses(iProc).SubGroup{1}, [], []);
+                                jParentTop.setMargin(Insets(5,0,4,0));
+                                jParentTop.setForeground(Color(.6,.6,.6));
+                                hashGroups.(hashParent) = jParentTop;
+                            end
+                            menuName = sProcesses(iProc).SubGroup{2};
+                        % Simple menu
+                        else
+                            jParentTop = jPopup;
+                            menuName = sProcesses(iProc).SubGroup;
+                        end
+                        % Create subgroup menu
+                        jParent = gui_component('Menu', jParentTop, [], menuName, [], []);
                         jParent.setMargin(Insets(5,0,4,0));
                         jParent.setForeground(Color(.6,.6,.6));
                         hashGroups.(hashKey) = jParent;
@@ -752,7 +779,11 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
             curTimeVector = GetProcessFileVector(GlobalData.Processes.Current(1:iProcess-1), FileTimeVector, nFiles);
         end
         % Sampling frequency 
-        curSampleFreq = 1 / (curTimeVector(2) - curTimeVector(1));
+        if (length(curTimeVector) > 2)
+            curSampleFreq = 1 / (curTimeVector(2) - curTimeVector(1));
+        else
+            curSampleFreq = 1000;
+        end
         % Set list tooltip
         jListProcess.setToolTipText(pathProcess);
         
@@ -807,6 +838,8 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
                 if ismember(option.Type, {'timewindow', 'baseline', 'poststim'})   % || ismember(valUnits, {'s', 'ms', 'time'})
                     if (length(curTimeVector) == 2)
                         bounds = {curTimeVector(1), curTimeVector(2), 10000};
+                    elseif (length(curTimeVector) == 1)
+                        bounds = [0, 1];
                     else
                         bounds = curTimeVector;
                     end
@@ -1047,24 +1080,19 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
                     java_setcb(jCombo, 'ActionPerformedCallback', @(h,ev)SetOptionValue(iProcess, optNames{iOpt}, ev.getSource().getSelectedIndex()+1));
                     
                 case 'montage'
-                    % If nothing is loaded: try to load the first data file
-                    if isempty(GlobalData.DataSet) && ~isempty(sFiles) && strcmpi(sFiles(1).FileType, 'data')
-                        [iDS, ChannelFile] = bst_memory('LoadDataFile', sFiles(1).FileName);
-                        if ~isempty(iDS)
-                            isLoaded = 1;
-                        else
-                            isLoaded = 0;
-                        end
-                    else
-                        isLoaded = 0;
+                    % Load channel file of first file in input
+                    ChannelMat = in_bst_channel(sFiles(1).ChannelFile, 'Channel');
+                    % Update automatic montages
+                    panel_montage('UnloadAutoMontages');
+                    if any(ismember({'ECOG', 'SEEG'}, {ChannelMat.Channel.Type}))
+                        panel_montage('AddAutoMontagesEeg', sFiles(1).SubjectName, ChannelMat);
+                    end
+                    if ismember('NIRS', {ChannelMat.Channel.Type})
+                        panel_montage('AddAutoMontagesNirs', ChannelMat);
                     end
                     % Get all the montage names
                     AllMontages = panel_montage('GetMontage',[]);
                     AllNames = {AllMontages.Name};
-                    % Unload data file
-                    if isLoaded
-                        bst_memory('UnloadDataSets', iDS);
-                    end
                     % Remove some montages
                     iRemove = find(ismember(AllNames, {'Bad channels', 'EOG', 'EMG', 'ExG', 'MISC'}));
                     AllNames(iRemove) = [];
@@ -2116,6 +2144,10 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
                         else
                             optValue = opt.Value;
                         end
+                        % For string, replace ' with ''
+                        if ischar(optValue) && ~isempty(optValue)
+                            optValue = strrep(optValue, '''', '''''');
+                        end
                         % Pad with spaces after the option name so that all the values line up nicely
                         strPad = repmat(' ', 1, maxLength - length(optNames{iOpt}));
                         % Create final string
@@ -2149,8 +2181,15 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
                             if ~isempty(iVal)
                                 strComment = ['  % ' str_striptag(opt.Comment{1,iVal})];
                             end
-                        elseif isfield(opt, 'Type') && ismember(opt.Type, {'combobox','combobox_label'})
+                        elseif isfield(opt, 'Type') && strcmpi(opt.Type, 'combobox')
                             strComment = ['  % ' str_striptag(opt.Value{2}{opt.Value{1}})];
+                        elseif isfield(opt, 'Type') && strcmpi(opt.Type, 'combobox_label')
+                            iCombo = find(strcmpi(opt.Value{1}, opt.Value{2}(2,:)));
+                            if ~isempty(iCombo)
+                                strComment = ['  % ' str_striptag(opt.Value{2}{1,iCombo})];
+                            else
+                                strComment = '';
+                            end
                         else
                             strComment = '';
                         end
@@ -2495,6 +2534,9 @@ function [sOutputs, sProcesses] = ShowPanelForFile(FileNames, ProcessNames) %#ok
     panel_nodelist('AddFiles', 'Process1', FileNames);
     % Load Time vector
     FileTimeVector = in_bst(FileNames{1}, 'Time');
+    if (length(FileTimeVector) < 2)
+        FileTimeVector = [0, 1];
+    end
     % Load the processes in the pipeline editor
     [sOutputs, sProcesses] = panel_process_select('ShowPanel', FileNames, ProcessNames, FileTimeVector);
 end

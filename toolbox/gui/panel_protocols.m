@@ -14,8 +14,9 @@ function varargout = panel_protocols(varargin)
 %        nodeFound = panel_protocols('SelectNode',          nodeRoot, FileName )
 %        nodeFound = panel_protocols('GetNode',             nodeType, iStudy, iFile )
 %        nodeFound = panel_protocols('GetNode',             FileName )
-%        nodeStudy = panel_protocols('SelectStudyNode',     nodeStudy ) % Select given 'study' tree node
-%        nodeStudy = panel_protocols('SelectStudyNode',     iStudy )    % Find 'study' tree node with studyIndex = iStudy and select it
+%        nodeStudy = panel_protocols('SelectStudyNode',     nodeStudy )  % Select given 'study' tree node
+%        nodeStudy = panel_protocols('SelectStudyNode',     iStudy )     % Find 'study' tree node with studyIndex = iStudy and select it
+%                    panel_protocols('SelectSubject',       SubjectName) % Select and expand subject node
 %                    panel_protocols('MarkUniqueNode',      bstNode)
 %      OutputFiles = panel_protocols('TreeHeadModel',       bstNode)
 %      OutputFiles = panel_protocols('TreeInverse',         bstNodes, is2014)
@@ -24,7 +25,7 @@ function varargout = panel_protocols(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -191,7 +192,9 @@ function bstPanelNew = CreatePanel() %#ok<DEFNU>
                     % Cancel action
                 else
                     % Replace the "Link to raw file" nodes with their parent
-                    if strcmpi(char(targetNodes(1).getType()), 'rawdata') && strcmpi(char(targetNodes(1).getParent().getType()), 'rawcondition')
+                    if strcmpi(char(targetNodes(1).getType()), 'rawdata') ...
+                            && strcmpi(char(targetNodes(1).getParent().getType()), 'rawcondition') ...
+                            && targetNodes(1).getParent().getChildCount() <= 1
                         for iNode = 1:length(targetNodes)
                             targetNodes(iNode) = targetNodes(iNode).getParent();
                         end
@@ -1223,6 +1226,73 @@ function OutputFiles = TreeInverse(bstNodes, is2014) %#ok<DEFNU>
 end
 
 
+%% ===== SELECT SUBJECT =====
+function SelectSubject(SubjectName) %#ok<DEFNU>
+    % Check input subject name
+    if ~ischar(SubjectName) || isempty(SubjectName)
+        return;
+    end
+    % Get subject 
+    [sSubject, iSubject] = bst_get('Subject', SubjectName);
+    if isempty(sSubject)
+        return;
+    end
+    % Get exploration mode
+    ExplorationMode = bst_get('Layout', 'ExplorationMode');
+    % Select different nodes depending on the exploration mode
+    switch (ExplorationMode)
+        case 'Subjects'
+            % Select first MRI
+            if ~isempty(sSubject.Anatomy)
+                SelectNode([], 'anatomy', iSubject, 1);
+            else
+                SelectNode([], 'subject', iSubject, -1);
+            end
+        case {'StudiesCond', 'StudiesSubj'}
+            % Get all the studies for this subject
+            [sStudies, iStudies] = bst_get('StudyWithSubject', sSubject.FileName);
+            % Select first study
+            if ~isempty(iStudies)
+                SelectStudyNode(iStudies(1));
+            else
+                SelectNode([], 'studysubject', -1, iSubject);
+            end
+    end
+end
 
 
+%% ===== EXPAND/COLLAPSE ALL =====
+function ExpandAll(isExpand) %#ok<DEFNU>
+    % Get tree handle
+    ctrl = bst_get('PanelControls', 'protocols');
+    if isempty(ctrl) || isempty(ctrl.jTreeProtocols)
+        return;
+    end
+%     % Get node path
+%     treeModel = ctrl.jTreeProtocols.getModel();
+%     nodes = treeModel.getPathToRoot(bstNode);
+%     % Create path
+%     jPath = java_create('javax.swing.tree.TreePath', 'Ljava.lang.Object;', nodes);
+    
+    jPath = java_create('javax.swing.tree.TreePath', 'Ljava.lang.Object;', ctrl.jTreeProtocols.getModel().getRoot());
+    ExpandAllRecursive(jPath);
+
+    function ExpandAllRecursive(parent)
+        % Traverse children
+        node = parent.getLastPathComponent();
+        e = node.children();
+        if (node.getChildCount() >= 0)
+            while (e.hasMoreElements())
+                n = e.nextElement();
+                ExpandAllRecursive(parent.pathByAddingChild(n));
+            end
+        end
+        % Expansion or collapse must be done bottom-up
+        if (isExpand)
+            ctrl.jTreeProtocols.expandPath(parent);
+        elseif ~ctrl.jTreeProtocols.isCollapsed(parent) && (parent.getPathCount() > 2)
+            ctrl.jTreeProtocols.collapsePath(parent);
+        end
+    end
+end
 

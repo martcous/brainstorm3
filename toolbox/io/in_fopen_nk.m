@@ -7,7 +7,7 @@ function [sFile, ChannelMat] = in_fopen_nk(DataFile)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -21,7 +21,7 @@ function [sFile, ChannelMat] = in_fopen_nk(DataFile)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2017
+% Authors: Francois Tadel, 2017-2018
 %          Inspired from NK2EDF, Teunis van Beelen, 2007-2017
 %          and from the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -437,6 +437,8 @@ sFile.prop.nAvg    = 1;
 sFile.channelflag = ones(hdr.num_channels,1);
 % Save full header in the file link
 sFile.header = hdr;
+% Acquisition date
+sFile.acq_date = str_date(hdr.startdate);
 
 
 %% ===== EVENTS =====

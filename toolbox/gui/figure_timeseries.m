@@ -20,7 +20,7 @@ function varargout = figure_timeseries( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -668,13 +668,24 @@ end
 % USAGE:  SetTimeSelectionManual(hFig, newSelection)
 %         SetTimeSelectionManual(hFig)
 function SetTimeSelectionManual(hFig, newSelection)
+    global GlobalData;
+    % If raw viewer: allow redimensioning of current page
+    if ~isempty(GlobalData.FullTimeWindow) && ~isempty(GlobalData.FullTimeWindow.Epochs) && ~isempty(GlobalData.FullTimeWindow.CurrentEpoch)
+        rawTimeWindow = GlobalData.FullTimeWindow.Epochs(GlobalData.FullTimeWindow.CurrentEpoch).Time([1, end]);
+    else
+        rawTimeWindow = [];
+    end
     % Get the time vector for this figure
     TimeVector = getappdata(hFig, 'TimeVector');
     % Ask for a time window
     if (nargin < 2) || isempty(newSelection)
-        newSelection = panel_time('InputTimeWindow', TimeVector([1,end]), 'Set time selection');
+        [newSelection, isUpdatedTime] = panel_time('InputTimeWindow', TimeVector([1,end]), 'Set time selection', [], [], rawTimeWindow);
         if isempty(newSelection)
             return
+        end
+        % Get the updated time vector
+        if isUpdatedTime
+            TimeVector = getappdata(hFig, 'TimeVector');
         end
     end
     % Select the closest point in time vector
@@ -947,6 +958,15 @@ function FigureZoom(hFig, direction, Factor, center)
                 end
             end
         case 'horizontal'
+            % Start by displaying the full resolution if necessary
+            [hFig, iFig, iDS] = bst_figures('GetFigure', hFig);
+            if (GlobalData.DataSet(iDS).Figure(iFig).Handles.DownsampleFactor > 1)
+                set(hFig, 'Pointer', 'watch');
+                drawnow;
+                GlobalData.DataSet(iDS).Figure(iFig).Handles.DownsampleFactor = 1;
+                figure_timeseries('PlotFigure', iDS, iFig, [], [], 1);
+                set(hFig, 'Pointer', 'arrow');
+            end
             % Get current time frame
             hCursor = findobj(hAxes(1), '-depth', 1, 'Tag', 'Cursor');
             Xcurrent = get(hCursor, 'XData');
@@ -1263,7 +1283,7 @@ function FigureKeyPressedCallback(hFig, ev)
         % === DATA FILES ===
         % CTRL+E : Add/delete event (raw viewer only)
         case 'e'
-            if isControl && ~isempty(GlobalData.DataSet(iDS).Measures.sFile) % && isFullDataFile 
+            if ~isempty(GlobalData.DataSet(iDS).Measures.sFile) % && isFullDataFile 
                 panel_record('ToggleEvent');
             end
         % CTRL+B : Accept/reject trial or time segment
@@ -1316,9 +1336,14 @@ function FigureKeyPressedCallback(hFig, ev)
                 bst_figures('ViewResults', hFig);
             end
         % CTRL+T : Default topography
-        case 't'           
+        case 't'        
             if isControl && isFullDataFile
-                bst_figures('ViewTopography', hFig);
+                bst_figures('ViewTopography', hFig, 1);
+            end
+        % CTRL+G : Default topography (no interpolation)
+        case 'g'           
+            if isControl && isFullDataFile
+                bst_figures('ViewTopography', hFig, 0);
             end
         % CTRL+V : Set video time
         case 'v'           
@@ -1350,6 +1375,17 @@ function FigureKeyPressedCallback(hFig, ev)
                 elseif isMenuSelectedChannels && isFullDataFile
                     newChannelFlag = GlobalData.DataSet(iDS).Measures.ChannelFlag;
                     newChannelFlag(iSelectedRows) = newValue;
+                    % Display warning for bipolar SEEG montages
+                    if ~isempty(TsInfo.MontageName) && ~isempty(strfind(TsInfo.MontageName, 'bipolar'))
+                        if ~java_dialog('confirm', [...
+                                'Marking one bad signal with a bipolar montage will mark two channels as bad.' 10 ...
+                                'This may cause more than one signal to disappear from this display.' 10 ...
+                                'To mark the bad channels individually, select the montage "All channels" first.' 10 10 ...
+                                'Mark ' num2str(length(iSelectedRows)) ' channels as bad?' 10 ...
+                                sprintf('%s ', GlobalData.DataSet(iDS).Channel(iSelectedRows).Name)], 'Bad channels')
+                            return;
+                        end
+                    end
                 end
                 % Save new channel flag
                 panel_channel_editor('UpdateChannelFlag', GlobalData.DataSet(iDS).DataFile, newChannelFlag);
@@ -1440,6 +1476,14 @@ function UpdateTimeSeriesFactor(hFig, changeFactor, isSave)
     for iAxes = 1:length(Handles)
         % Column plot: update the gain of the lines plotted
         if isColumn
+            % Get events dots
+            hEventDotsChannel = findobj(Handles(iAxes).hAxes, '-depth', 1, 'Tag', 'EventDotsChannel');
+            if ~isempty(hEventDotsChannel)
+                iLineDots = get(hEventDotsChannel, 'UserData');
+                if iscell(iLineDots)
+                    iLineDots = [iLineDots{:}];
+                end
+            end
             % Update figure lines
             for iLine = 1:length(Handles(iAxes).hLines)
                 % Skip the channels that are not visible
@@ -1461,12 +1505,30 @@ function UpdateTimeSeriesFactor(hFig, changeFactor, isSave)
                     % Update value
                     set(Handles(iAxes).hLinePatches(iLine), 'YData', YData);
                 end
+                % Update event dots for this line
+                if ~isempty(hEventDotsChannel)
+                    iDot = find(iLineDots == iLine);
+                    if ~isempty(iLine)
+                        % Get values
+                        YData = get(hEventDotsChannel(iDot), 'YData');
+                        % Re-center them on zero, and change the factor
+                        YData = (YData - Handles(iAxes).ChannelOffsets(iLine)) * changeFactor + Handles(iAxes).ChannelOffsets(iLine);
+                        % Update value
+                        set(hEventDotsChannel(iDot), 'YData', YData);
+                    end
+                end
             end
             % Update factor value
             GlobalData.DataSet(iDS).Figure(iFig).Handles(iAxes).DisplayFactor = Handles(iAxes).DisplayFactor * changeFactor;
-        % Else: Zoom/unzoom vertically in the graph
+        % Butterfly: Zoom/unzoom vertically in the graph
         else
             FigureZoom(hFig, 'vertical', changeFactor);
+            % If auto-scale is disabled: Update DataMinMax to keep it hen scrolling
+            if ~TsInfo.AutoScaleY
+                for iAxe = 1:length(GlobalData.DataSet(iDS).Figure(iFig).Handles)
+                    GlobalData.DataSet(iDS).Figure(iFig).Handles(iAxe).DataMinMax = GlobalData.DataSet(iDS).Figure(iFig).Handles(iAxe).DataMinMax ./ changeFactor;
+                end
+            end
         end
     end
     % Update default factor in the figure
@@ -1537,20 +1599,43 @@ function LineClickedCallback(hLine, ev)
     if isempty(iFig)
         return;
     end
-    sFig = GlobalData.DataSet(iDS).Figure(iFig);
     % Ignore figures with multiple graphs
-    if (length(sFig.Handles) > 1)
+    if (length(GlobalData.DataSet(iDS).Figure(iFig).Handles) > 1)
         return;
     end
     % Get channel indice (relative to montage display rows)
-    iClickChan = find(sFig.Handles(1).hLines == hLine);
+    iClickChan = find(GlobalData.DataSet(iDS).Figure(iFig).Handles(1).hLines == hLine);
     if isempty(iClickChan)
         return
     end
+    % Get channel name
+    [ChannelName, ChannelLabel] = GetChannelName(iDS, iFig, iClickChan);
+    % Get click type
+    isRightClick = strcmpi(get(hFig, 'SelectionType'), 'alt');
+    % Right click : display popup menu
+    if isRightClick
+        % Display popup menu (with the channel name as a title)
+        setappdata(hFig, 'clickSource', hAxes);
+        DisplayFigurePopup(hFig, ChannelLabel);   
+        setappdata(hFig, 'clickSource', []);
+    % Left click: Select/unselect line
+    else
+        bst_figures('ToggleSelectedRow', ChannelName);
+    end             
+    % Update figure selection
+    bst_figures('SetCurrentFigure', hFig, '2D');
+end
+
+
+%% ===== GET CHANNEL NAME =====
+function [ChannelName, ChannelLabel] = GetChannelName(iDS, iFig, iLine)
+    global GlobalData;
+    % Get figure handles
+    sFig = GlobalData.DataSet(iDS).Figure(iFig);
     % Accept channel mouse selection for DataTimeSeries AND real recordings
     if strcmpi(sFig.Id.Type, 'DataTimeSeries') && ~isempty(sFig.Id.Modality)
         % Get figure montage
-        TsInfo = getappdata(hFig, 'TsInfo');
+        TsInfo = getappdata(sFig.hFigure, 'TsInfo');
         % Get channels selected in the figure (relative to Channel structure)
         if isequal(TsInfo.MontageName, 'Bad channels')
             iFigChannels = find(GlobalData.DataSet(iDS).Measures.ChannelFlag == -1);
@@ -1562,7 +1647,7 @@ function LineClickedCallback(hLine, ev)
         % If there is a montage selected
         if ~isempty(TsInfo.MontageName)
             % Get selected montage
-            sMontage = panel_montage('GetMontage', TsInfo.MontageName, hFig);
+            sMontage = panel_montage('GetMontage', TsInfo.MontageName, sFig.hFigure);
             if isempty(sMontage)
                 disp(['BST> Error: Invalid montage name "' TsInfo.MontageName '".']);
                 return;
@@ -1579,17 +1664,17 @@ function LineClickedCallback(hLine, ev)
             % Get montage indices
             [iMontageChannels, iMatrixChan, iMatrixDisp] = panel_montage('GetMontageChannels', sMontage, {GlobalData.DataSet(iDS).Channel.Name}, ChannelFlag);
             % Get the entry corresponding to the clicked channel in the montage
-            ChannelName = sMontage.DispNames{iMatrixDisp(iClickChan)};
+            ChannelName = sMontage.DispNames{iMatrixDisp(iLine)};
             % Remove possible color tag "NAME|COLOR"
             iTag = find(ChannelName == '|');
             if ~isempty(iTag) && (iTag > 1)
                 ChannelName = ChannelName(1:iTag-1);
             end
-            channelLabel = ['Channel: ' ChannelName];
+            ChannelLabel = ['Channel: ' ChannelName];
         else
-            iChannel = iFigChannels(iClickChan);
+            iChannel = iFigChannels(iLine);
             ChannelName = char(GlobalData.DataSet(iDS).Channel(iChannel).Name);
-            channelLabel = sprintf('Channel #%d: %s', iChannel, ChannelName);
+            ChannelLabel = sprintf('Channel #%d: %s', iChannel, ChannelName);
         end
         % NIRS sensors: Add related channel names
         if strcmpi(sFig.Id.Modality, 'NIRS')
@@ -1597,27 +1682,13 @@ function LineClickedCallback(hLine, ev)
             ChannelName = panel_montage('GetRelatedNirsChannels', GlobalData.DataSet(iDS).Channel, ChannelName);
         end
     else
-        if (iClickChan <= length(sFig.Handles(1).LinesLabels))
+        if (iLine <= length(sFig.Handles(1).LinesLabels))
             ChannelName = sFig.Handles(1).LinesLabels{iClickChan};
         else
             ChannelName = 'noname';
         end
-        channelLabel = ['Channel: ' ChannelName];
+        ChannelLabel = ['Channel: ' ChannelName];
     end
-    % Get click type
-    isRightClick = strcmpi(get(hFig, 'SelectionType'), 'alt');
-    % Right click : display popup menu
-    if isRightClick
-        % Display popup menu (with the channel name as a title)
-        setappdata(hFig, 'clickSource', hAxes);
-        DisplayFigurePopup(hFig, channelLabel);   
-        setappdata(hFig, 'clickSource', []);
-    % Left click: Select/unselect line
-    else
-        bst_figures('ToggleSelectedRow', ChannelName);
-    end             
-    % Update figure selection
-    bst_figures('SetCurrentFigure', hFig, '2D');
 end
 
 
@@ -1948,8 +2019,12 @@ function DisplayFigurePopup(hFig, menuTitle, curTime)
     isSource = ismember(Modality, {'results', 'timefreq', 'stat', 'none'});
     if ~isempty(Modality) && (Modality(1) ~= '$') && ~isSource
         % === View TOPOGRAPHY ===
-        jItem = gui_component('MenuItem', jPopup, [], 'View topography', IconLoader.ICON_TOPOGRAPHY, [], @(h,ev)bst_figures('ViewTopography', hFig));
-        jItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, KeyEvent.CTRL_MASK));   
+        jItem = gui_component('MenuItem', jPopup, [], 'View topography', IconLoader.ICON_TOPOGRAPHY, [], @(h,ev)bst_figures('ViewTopography', hFig, 1));
+        jItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, KeyEvent.CTRL_MASK));
+        if strcmpi(Modality, 'EEG')
+            jItem = gui_component('MenuItem', jPopup, [], 'View topography (no smoothing)', IconLoader.ICON_TOPOGRAPHY, [], @(h,ev)bst_figures('ViewTopography', hFig, 0));
+            jItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, KeyEvent.CTRL_MASK));
+        end
         % === View SOURCES ===
         if ~isempty(sStudy.Result)
             jItem = gui_component('MenuItem', jPopup, [], 'View sources', IconLoader.ICON_RESULTS, [], @(h,ev)bst_figures('ViewResults', hFig));
@@ -2092,7 +2167,9 @@ function DisplayFigurePopup(hFig, menuTitle, curTime)
         gui_component('MenuItem', jMenuSave, [], 'Export to file', IconLoader.ICON_TS_EXPORT, [], @(h,ev)bst_call(@out_figure_timeseries, hFig, [], 'SelectedChannels'));
         % === EXPORT TO MATLAB ===
         gui_component('MenuItem', jMenuSave, [], 'Export to Matlab', IconLoader.ICON_MATLAB_EXPORT, [], @(h,ev)bst_call(@out_figure_timeseries, hFig, 'Variable', 'SelectedChannels'));
-
+        % === EXPORT TO PLOTLY ===
+        gui_component('MenuItem', jMenuSave, [], 'Export to Plotly', IconLoader.ICON_PLOTLY, [], @(h,ev)bst_call(@out_figure_plotly, hFig));
+        
     % ==== MENU: FIGURE ====    
     jMenuFigure = gui_component('Menu', jPopup, [], 'Figure', IconLoader.ICON_LAYOUT_SHOWALL);
         % === FIGURE CONFIG ===
@@ -2146,10 +2223,10 @@ function DisplayFigurePopup(hFig, menuTitle, curTime)
             jItem.setAccelerator(KeyStroke.getKeyStroke('=', 0));
             jItem = gui_component('MenuItem', jMenuFigure, [], 'Apply montage to all figures', IconLoader.ICON_TS_SYNCRO, [], @(h,ev)CopyDisplayOptions(hFig, 1, 0));
             jItem.setAccelerator(KeyStroke.getKeyStroke('*', 0));
-            % Clone figure
-            jMenuFigure.addSeparator();
-            gui_component('MenuItem', jMenuFigure, [], 'Clone figure', IconLoader.ICON_COPY, [], @(h,ev)bst_figures('CloneFigure', hFig));
         end
+        % Clone figure
+        jMenuFigure.addSeparator();
+        gui_component('MenuItem', jMenuFigure, [], 'Clone figure', IconLoader.ICON_COPY, [], @(h,ev)bst_figures('CloneFigure', hFig));
     % Display Popup menu
     gui_popup(jPopup, hFig);
 end
@@ -2360,7 +2437,7 @@ function isOk = PlotFigure(iDS, iFig, F, TimeVector, isFastUpdate, Std)
         else
             PlotHandles(iAxes).DataMinMax = [min(F{iAxes}(:)), max(F{iAxes}(:))];
             % With Std
-            if ~isempty(Std) && ~isempty(Std{iAxes})
+            if ~isempty(Std) && ~isempty(Std{iAxes}) && isequal(size(F{iAxes}), size(Std{iAxes}))
                 Faxes = [F{iAxes} + Std{iAxes}, F{iAxes} - Std{iAxes}];
                 tmpMinMax = [min(Faxes(:)), max(Faxes(:))];
                 % Make sure that we are not going below zero just because of the Std
@@ -2437,7 +2514,10 @@ function isOk = PlotFigure(iDS, iFig, F, TimeVector, isFastUpdate, Std)
         end
         % Store initial XLim and YLim
         setappdata(hAxes(iAxes), 'XLimInit', get(hAxes(iAxes), 'XLim'));
-        setappdata(hAxes(iAxes), 'YLimInit', get(hAxes(iAxes), 'YLim'));
+        % When updating the figure: Keep the same zoom factor
+        if ~isFastUpdate
+            setappdata(hAxes(iAxes), 'YLimInit', get(hAxes(iAxes), 'YLim'));
+        end
     end
     % Resize here FOR MAC ONLY (don't now why, if not the display flickers)
     if strncmp(computer,'MAC',3)
@@ -2611,7 +2691,9 @@ function isOk = PlotFigure(iDS, iFig, F, TimeVector, isFastUpdate, Std)
         ViewStatClusters(hFig);
     end
     % Set current object/axes
-    set(hFig, 'CurrentAxes', hAxes(1), 'CurrentObject', hAxes(1));
+    if ishandle(hAxes(1))
+        set(hFig, 'CurrentAxes', hAxes(1), 'CurrentObject', hAxes(1));
+    end
     isOk = 1;
 end
 
@@ -2668,6 +2750,27 @@ function PlotHandles = PlotAxes(iDS, hAxes, PlotHandles, TimeVector, F, TsInfo, 
         % Replace plot colors if available
         if ~isempty(MontageColors) && isempty(LinesColor)
             LinesColor = MontageColors;
+        end
+    end
+
+    % ===== DOWNSAMPLE TIME SERIES =====
+    % If optimization is disabled
+    DownsampleTimeSeries = bst_get('DownsampleTimeSeries');
+    if (DownsampleTimeSeries == 0)
+        PlotHandles.DownsampleFactor = 1;
+    % Detect optimal downsample factor
+    elseif ~isFastUpdate || isempty(PlotHandles.DownsampleFactor)
+        % Get number of pixels in the axes
+        figPos = get(get(hAxes,'Parent'), 'Position');
+        % Keep 5 values per pixel
+        PlotHandles.DownsampleFactor = max(1, floor(length(TimeVector) / (figPos(3) -50) / DownsampleTimeSeries));
+    end
+    % Downsample time series
+    if (PlotHandles.DownsampleFactor > 1)
+        TimeVector = TimeVector(1:PlotHandles.DownsampleFactor:end);
+        F = F(:,1:PlotHandles.DownsampleFactor:end);
+        if ~isempty(Std)
+            Std = Std(:,1:PlotHandles.DownsampleFactor:end);
         end
     end
 
@@ -2855,7 +2958,7 @@ function PlotHandles = PlotAxesButterfly(iDS, hAxes, PlotHandles, TsInfo, TimeVe
         
         % ===== STD HALO =====
         % Plot Std as a transparent halo
-        if ~isempty(Std)
+        if ~isempty(Std) && isequal(size(F), size(Std))
             % Get the colors of all the lines
             C = get(PlotHandles.hLines, 'Color');
             if ~iscell(C)
@@ -3121,8 +3224,10 @@ function PlotHandles = PlotAxesColumn(hAxes, PlotHandles, TsInfo, TimeVector, F,
                    'Yticklabel',     bst_flip(YtickLabel,1));
     end
     
-    % Set Y axis scale
-    set(hAxes, 'YLim', YLim);
+    % Set Y axis scale (updating: keeping the zoom factor)
+    if ~isFastUpdate
+        set(hAxes, 'YLim', YLim);
+    end
     % Set axis orientation
     set(hAxes, 'YDir', 'normal');
     % Remove axes legend for Y axis
@@ -3548,7 +3653,7 @@ function ShowGrids(jButton, hFig)
     hAxes = findobj(hFig, '-depth', 1, 'tag', 'AxesGraph');
     set(hAxes, 'XGrid', toggle);
     set(hAxes, 'XMinorGrid', toggle);
-    % Only add XGrid for butterfly view.
+    % Only add YGrid for butterfly view.
     if (~isSel || ~strcmpi(TsInfo.DisplayMode, 'column'))
         set(hAxes, 'YGrid', toggle);
         set(hAxes, 'YMinorGrid', toggle);
@@ -3657,6 +3762,8 @@ function SetResolution(iDS, iFig, newResX, newResY)
         end
         % Save resolution modification
         Resolution(1) = newResX;
+    else
+        Resolution(1) = 0;
     end
     % Changing the amplitude resolution
     if (length(newResY) == 1) && (newResY ~= TsInfo.Resolution(2)) && (newResY > 0)
@@ -3683,6 +3790,8 @@ function SetResolution(iDS, iFig, newResX, newResY)
         end
         % Save resolution modification
         Resolution(2) = newResY;
+    else
+        Resolution(2) = 0;
     end
     % Save modifications in user preferences
     if ~isequal(Resolution, oldResolution)
@@ -3927,6 +4036,7 @@ end
 
 %% ===== PLOT EVENTS DOTS: EVENTS BAR =====
 function PlotEventsDots_EventsBar(hFig)
+    global GlobalData;
     % Get events bar
     hEventsBar = findobj(hFig, '-depth', 1, 'Tag', 'AxesEventsBar');
     if isempty(hEventsBar)
@@ -3934,6 +4044,25 @@ function PlotEventsDots_EventsBar(hFig)
     end
     % Clear axes from previous objects
     cla(hEventsBar);
+    
+    % Get time series axes
+    hAxes = findobj(hFig, '-depth', 1, 'Tag', 'AxesGraph');
+    % Get previous channel markers
+    hEventDotsChannel = findobj(hAxes, '-depth', 1, 'Tag', 'EventDotsChannel');
+    if ~isempty(hEventDotsChannel)
+        delete(hEventDotsChannel);
+    end
+    % Get figure handles
+    [hFig,iFig,iDS] = bst_figures('GetFigure', hFig);
+    Handles = GlobalData.DataSet(iDS).Figure(iFig).Handles;
+    % Get selected montage
+    TsInfo = getappdata(hFig, 'TsInfo');
+    if ~isempty(TsInfo.MontageName)
+        sMontage = panel_montage('GetMontage', TsInfo.MontageName, hFig);
+    else
+        sMontage = [];
+    end
+
     % Get the raw events and time axes
     events = panel_record('GetEventsInTimeWindow', hFig);
     % Loop on all the events types
@@ -3989,6 +4118,43 @@ function PlotEventsDots_EventsBar(hFig)
                              'Tag',                 'EventLabels', ...
                              'UserData',            iEvt, ...
                              'Parent',              hEventsBar);
+        end
+
+        % Plot marker on top of signal lines (only for simple events)
+        if (size(events(iEvt).times, 1) == 1)
+            % Look for event name in the labels of the data lines
+            iLine = find(strcmpi(events(iEvt).label, Handles.LinesLabels));
+            % If not found and there is a montage, try to look in the montage display names
+            if isempty(iLine) && ~isempty(sMontage)
+                iChan = find(strcmpi(events(iEvt).label, sMontage.ChanNames));
+                if ~isempty(iChan)
+                    iDispName = find(sMontage.Matrix(:,iChan));
+                    if ~isempty(iDispName)
+                        iLine = find(strcmpi(sMontage.DispNames{iDispName(1)}, Handles.LinesLabels));
+                    end
+                end
+            end
+            % If a line is found: plot a dot on it
+            if ~isempty(iLine)
+                % Get line positions
+                XData = get(Handles.hLines(iLine(1)), 'XData');
+                YData = get(Handles.hLines(iLine(1)), 'YData');
+                % Get the closest Y coordinates at the time of the event
+                iTime = bst_closest(events(iEvt).times, XData);
+                % Plot markers on top of the lines
+                hEvtChan = line(...
+                    events(iEvt).times, ...  % X
+                    YData(iTime), ..., ...   % Y
+                    4 * ones(1,nOccur), ...  % Z=4
+                    'LineStyle',       'none', ...
+                    'MarkerFaceColor', color, ...
+                    'MarkerEdgeColor', color .* .8, ...
+                    'MarkerSize',      5, ...
+                    'Marker',          'o', ...
+                    'Tag',             'EventDotsChannel', ...
+                    'UserData',        iLine(1), ...
+                    'Parent',          hAxes);
+            end
         end
     end
 end

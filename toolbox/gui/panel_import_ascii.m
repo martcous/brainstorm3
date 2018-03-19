@@ -6,7 +6,7 @@ function varargout = panel_import_ascii(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -20,7 +20,7 @@ function varargout = panel_import_ascii(varargin)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2016
+% Authors: Francois Tadel, 2008-2017
 
 eval(macro_method);
 end
@@ -64,7 +64,9 @@ function [bstPanelNew, panelName] = CreatePanel(FileFormat) %#ok<DEFNU>
     % [Time x Channel]
     jRadioTimeChannel = gui_component('radio', jPanelOptions, 'br tab', '[Time x Channel]');
     jButtonGroup.add(jRadioTimeChannel);  
-
+    % First columns contains the channel names
+    jCheckChannelName = gui_component('checkbox', jPanelOptions, 'br tab', 'First element = channel name');
+    
     % Number of lines to skip at the beginning of the file
     gui_component('label', jPanelOptions, 'br', 'Skip header lines: ');
     jTextSkipLines = JTextField('0');
@@ -156,6 +158,9 @@ function [bstPanelNew, panelName] = CreatePanel(FileFormat) %#ok<DEFNU>
         otherwise
             jRadioUnitsNone.setSelected(1);
     end
+    % Name column
+    jCheckChannelName.setSelected(OPTIONS.isChannelName);
+    
     % ===== CREATE PANEL =====
     % Return a mutex to wait for panel close
     bst_mutex('create', panelName);
@@ -220,6 +225,8 @@ function [bstPanelNew, panelName] = CreatePanel(FileFormat) %#ok<DEFNU>
         end
         % Number of trials averaged
         OPTIONS.nAvg = str2num(char(jTextNavg.getText()));
+        % Name column
+        OPTIONS.isChannelName = jCheckChannelName.isSelected();
             
         % Reset option isCanceled 
         OPTIONS.isCanceled = 0;

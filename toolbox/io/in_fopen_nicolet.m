@@ -5,7 +5,7 @@ function [sFile, ChannelMat] = in_fopen_nicolet(DataFile)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -19,7 +19,7 @@ function [sFile, ChannelMat] = in_fopen_nicolet(DataFile)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2017
+% Authors: Francois Tadel, 2017-2018
 
 
 %% ===== READ HEADER =====
@@ -62,6 +62,8 @@ sFile.header       = hdr;
 % Comment: short filename
 [fPath, fBase, fExt] = bst_fileparts(DataFile);
 sFile.comment = fBase;
+% Acquisition date
+sFile.acq_date = datestr(datenum(hdr.obj.segments.startDate), 'dd-mmm-yyyy');
 
 % Multiple segments
 if (hdr.nSegments > 1)

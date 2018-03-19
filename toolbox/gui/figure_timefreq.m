@@ -9,7 +9,7 @@ function varargout = figure_timefreq( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -23,7 +23,7 @@ function varargout = figure_timefreq( varargin )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2010-2016
+% Authors: Francois Tadel, 2010-2017
 
 eval(macro_method);
 end
@@ -809,7 +809,9 @@ function DisplayFigurePopup(hFig)
         gui_component('MenuItem', jMenuSave, [], 'Export to file', IconLoader.ICON_TS_EXPORT, [], @(h,ev)bst_call(@out_figure_timefreq, hFig, []));
         % === EXPORT TO MATLAB ===
         gui_component('MenuItem', jMenuSave, [], 'Export to Matlab', IconLoader.ICON_MATLAB_EXPORT, [], @(h,ev)bst_call(@out_figure_timefreq, hFig, 'Variable'));
-    
+        % === EXPORT TO PLOTLY ===
+        gui_component('MenuItem', jMenuSave, [], 'Export to Plotly', IconLoader.ICON_PLOTLY, [], @(h,ev)bst_call(@out_figure_plotly, hFig));
+        
     % ==== MENU: FIGURE ====    
     jMenuFigure = gui_component('Menu', jPopup, [], 'Figure', IconLoader.ICON_LAYOUT_SHOWALL);
         % Change background color
@@ -1174,12 +1176,12 @@ function PlotTimefreqSurfHigh(hAxes, Time, Freqs, TF, TFmask)
     [X1,Y1] = meshgrid(Time, linspace(d, 1-d, length(Y)-1));
     [X2,Y2] = meshgrid(linspace(TimeBounds(1), TimeBounds(2), res(1)), linspace(0, 1, res(2)));
     % Re-interpolate for high-resolution display: one value per pixel
-    TFhi = interp2(X1, Y1, TF, X2, Y2, 'spline');
+    TFhi = interp2(X1, Y1, TF, X2, Y2, 'linear');
     
     % If there are lots of strictly 0 values (thresholded stat): Enforce the zero values
     zeroMask = (TF == 0);
     if (nnz(zeroMask) > 0.10*numel(TF)) && (nnz(zeroMask) < numel(TF))
-        zeroMaskHi = interp2(X1, Y1, double(zeroMask), X2, Y2, 'spline');
+        zeroMaskHi = interp2(X1, Y1, double(zeroMask), X2, Y2, 'linear');
         TFhi(zeroMaskHi > 0.8) = 0;
     end
     
@@ -1484,7 +1486,11 @@ function ImageClicked_Callback(hFig, FileName, RowName)
             Function = [];
         end
         % View separate sensor
-        view_timefreq(FileName, 'SingleSensor', RowName, [], Function);
+        hFigNew = view_timefreq(FileName, 'SingleSensor', RowName, [], Function);
+        % Set smooth display
+        if TfInfo.HighResolution
+            panel_display('SetSmoothDisplay', TfInfo.HighResolution, hFigNew);
+        end
     end
 end
 

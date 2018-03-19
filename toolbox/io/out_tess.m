@@ -13,7 +13,7 @@ function out_tess(BstFile, OutputFile, FileFormat, sMri)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -81,7 +81,8 @@ switch upper(FileFormat)
         TessMat.Faces = TessMat.Faces(:,[2 1 3]);
         % MRI => FreeSurfer RAS coord
         if ~isempty(sMri)
-            TessMat.Vertices = bst_bsxfun(@minus, TessMat.Vertices, [128 129 128] / 1000);
+            % TessMat.Vertices = bst_bsxfun(@minus, TessMat.Vertices, [128 129 128] / 1000);
+            TessMat.Vertices = bst_bsxfun(@minus, TessMat.Vertices, (size(sMri.Cube)/2 + [0 1 0]) .* sMri.Voxsize / 1000);
         end
         % Export file
         out_tess_fs(TessMat, OutputFile);

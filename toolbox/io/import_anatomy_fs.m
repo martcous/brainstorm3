@@ -1,7 +1,7 @@
-function errorMsg = import_anatomy_fs(iSubject, FsDir, nVertices, isInteractive, sFid, isExtraMaps)
+function errorMsg = import_anatomy_fs(iSubject, FsDir, nVertices, isInteractive, sFid, isExtraMaps, isAseg)
 % IMPORT_ANATOMY_FS: Import a full FreeSurfer folder as the subject's anatomy.
 %
-% USAGE:  errorMsg = import_anatomy_fs(iSubject, FsDir=[], nVertices=15000, isInteractive=1, sFid=[], isExtraMaps=0)
+% USAGE:  errorMsg = import_anatomy_fs(iSubject, FsDir=[], nVertices=15000, isInteractive=1, sFid=[], isExtraMaps=0, isAseg=1)
 %
 % INPUT:
 %    - iSubject     : Indice of the subject where to import the MRI
@@ -12,6 +12,7 @@ function errorMsg = import_anatomy_fs(iSubject, FsDir, nVertices, isInteractive,
 %    - sFid         : Structure with the fiducials coordinates
 %    - isExtraMaps  : If 1, create an extra folder "FreeSurfer" to save some of the
 %                     FreeSurfer cortical maps (thickness, ...)
+%    - isAseg       : If 1, imports the aseg atlas as a set of surfaces
 % OUTPUT:
 %    - errorMsg : String: error message if an error occurs
 
@@ -19,7 +20,7 @@ function errorMsg = import_anatomy_fs(iSubject, FsDir, nVertices, isInteractive,
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -33,10 +34,14 @@ function errorMsg = import_anatomy_fs(iSubject, FsDir, nVertices, isInteractive,
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2012-2016
+% Authors: Francois Tadel, 2012-2018
 
 %% ===== PARSE INPUTS =====
-% Extrac cortical maps
+% Import ASEG atlas
+if (nargin < 7) || isempty(isAseg)
+    isAseg = 1;
+end
+% Extract cortical maps
 if (nargin < 6) || isempty(isExtraMaps)
     isExtraMaps = 0;
 end
@@ -94,25 +99,8 @@ if ~isempty(sSubject.Anatomy) || ~isempty(sSubject.Surface)
         bst_progress('stop');
         return;
     end
-    % Delete MRI
-    if ~isempty(sSubject.Anatomy)
-        file_delete(file_fullpath({sSubject.Anatomy.FileName}), 1);
-        sSubject.Anatomy(1:end) = [];
-    end
-    % Delete surfaces
-    if ~isempty(sSubject.Surface)
-        file_delete(file_fullpath({sSubject.Surface.FileName}), 1);
-        sSubject.Surface(1:end) = [];
-    end
-    % Empty defaults lists
-    sSubject.iAnatomy = [];
-    sSubject.iCortex = [];
-    sSubject.iScalp = [];
-    sSubject.iInnerSkull = [];
-    sSubject.iOuterSkull = [];
-    % Update subject structure
-    bst_set('Subject', iSubject, sSubject);
-    panel_protocols('UpdateNode', 'Subject', iSubject);
+    % Delete anatomy
+    sSubject = db_delete_anatomy(iSubject);
 end
 
 
@@ -221,14 +209,22 @@ if ~isInteractive || ~isempty(FidFile)
     % Use fiducials from file
     if ~isempty(FidFile)
         % Already loaded
-    % Set some random fiducial points
+    % Compute them from MNI transformation
     elseif isempty(sFid)
-        NAS = [cubeSize(1)./2,  cubeSize(2),           cubeSize(3)./2];
-        LPA = [1,               cubeSize(2)./2,        cubeSize(3)./2];
-        RPA = [cubeSize(1),     cubeSize(2)./2,        cubeSize(3)./2];
-        AC  = [cubeSize(1)./2,  cubeSize(2)./2 + 20,   cubeSize(3)./2];
-        PC  = [cubeSize(1)./2,  cubeSize(2)./2 - 20,   cubeSize(3)./2];
-        IH  = [cubeSize(1)./2,  cubeSize(2)./2,        cubeSize(3)./2 + 50];
+%         NAS = [cubeSize(1)./2,  cubeSize(2),           cubeSize(3)./2];
+%         LPA = [1,               cubeSize(2)./2,        cubeSize(3)./2];
+%         RPA = [cubeSize(1),     cubeSize(2)./2,        cubeSize(3)./2];
+%         AC  = [cubeSize(1)./2,  cubeSize(2)./2 + 20,   cubeSize(3)./2];
+%         PC  = [cubeSize(1)./2,  cubeSize(2)./2 - 20,   cubeSize(3)./2];
+%         IH  = [cubeSize(1)./2,  cubeSize(2)./2,        cubeSize(3)./2 + 50];
+        NAS = [];
+        LPA = [];
+        RPA = [];
+        AC  = [];
+        PC  = [];
+        IH  = [];
+        isComputeMni = 1;
+        warning('BST> Import anatomy: Anatomical fiducials were not defined, using standard MNI positions for NAS/LPA/RPA.');
     % Else: use the defined ones
     else
         NAS = sFid.NAS;
@@ -242,7 +238,9 @@ if ~isInteractive || ~isempty(FidFile)
             isComputeMni = 1;
         end
     end
-    figure_mri('SetSubjectFiducials', iSubject, NAS, LPA, RPA, AC, PC, IH);
+    if ~isempty(NAS) || ~isempty(LPA) || ~isempty(RPA) || ~isempty(AC) || ~isempty(PC) || ~isempty(IH)
+        figure_mri('SetSubjectFiducials', iSubject, NAS, LPA, RPA, AC, PC, IH);
+    end
 % Define with the MRI Viewer
 else
     % MRI Visualization and selection of fiducials (in order to align surfaces/MRI)
@@ -250,15 +248,17 @@ else
     drawnow;
     bst_progress('stop');
     % Display help message: ask user to select fiducial points
-    jHelp = bst_help('MriSetup.html', 0);
+    % jHelp = bst_help('MriSetup.html', 0);
     % Wait for the MRI Viewer to be closed
     waitfor(hFig);
     % Close help window
-    jHelp.close();
+    % jHelp.close();
 end
 % Load SCS and NCS field to make sure that all the points were defined
+warning('off','MATLAB:load:variableNotFound');
 sMri = load(BstMriFile, 'SCS', 'NCS');
-if ~isfield(sMri, 'SCS') || isempty(sMri.SCS) || isempty(sMri.SCS.NAS) || isempty(sMri.SCS.LPA) || isempty(sMri.SCS.RPA) || isempty(sMri.SCS.R)
+warning('on','MATLAB:load:variableNotFound');
+if ~isComputeMni && (~isfield(sMri, 'SCS') || isempty(sMri.SCS) || isempty(sMri.SCS.NAS) || isempty(sMri.SCS.LPA) || isempty(sMri.SCS.RPA) || isempty(sMri.SCS.R))
     errorMsg = ['Could not import FreeSurfer folder: ' 10 10 'Some fiducial points were not defined properly in the MRI.'];
     if isInteractive
         bst_error(errorMsg, 'Import FreeSurfer folder', 0);
@@ -464,22 +464,29 @@ end
 HeadFile = tess_isohead(iSubject, 10000, 0, 2);
 
 %% ===== LOAD ASEG.MGZ =====
-if ~isempty(AsegFile)
+if isAseg && ~isempty(AsegFile)
     % Import atlas
     [iAseg, BstAsegFile] = import_surfaces(iSubject, AsegFile, 'MRI-MASK', 0, OffsetMri);
     % Extract cerebellum only
-    BstCerebFile = tess_extract_struct(BstAsegFile{1}, {'Cerebellum L', 'Cerebellum R'}, 'aseg | cerebellum');
-    % Downsample cerebllum
-    [BstCerebLowFile, iCerLow, xCerLow] = tess_downsize(BstCerebFile, 2000, 'reducepatch');
-    % Merge with low-resolution pial
-    BstMixedLowFile = tess_concatenate({CortexLowFile, BstCerebLowFile}, sprintf('cortex_cereb_%dV', length(xLhLow) + length(xRhLow) + length(xCerLow)), 'Cortex');
-    % Rename mixed file
-    oldBstMixedLowFile = file_fullpath(BstMixedLowFile);
-    BstMixedLowFile    = bst_fullfile(bst_fileparts(oldBstMixedLowFile), 'tess_cortex_pialcereb_low.mat');
-    movefile(oldBstMixedLowFile, BstMixedLowFile);
-    % Delete intermediate files
-    file_delete({file_fullpath(BstCerebFile), file_fullpath(BstCerebLowFile)}, 1);
-    db_reload_subjects(iSubject);
+    try
+        BstCerebFile = tess_extract_struct(BstAsegFile{1}, {'Cerebellum L', 'Cerebellum R'}, 'aseg | cerebellum');
+    catch
+        BstCerebFile = [];
+    end
+    % If the cerebellum surface can be reconstructed
+    if ~isempty(BstCerebFile)
+        % Downsample cerebllum
+        [BstCerebLowFile, iCerLow, xCerLow] = tess_downsize(BstCerebFile, 2000, 'reducepatch');
+        % Merge with low-resolution pial
+        BstMixedLowFile = tess_concatenate({CortexLowFile, BstCerebLowFile}, sprintf('cortex_cereb_%dV', length(xLhLow) + length(xRhLow) + length(xCerLow)), 'Cortex');
+        % Rename mixed file
+        oldBstMixedLowFile = file_fullpath(BstMixedLowFile);
+        BstMixedLowFile    = bst_fullfile(bst_fileparts(oldBstMixedLowFile), 'tess_cortex_pialcereb_low.mat');
+        movefile(oldBstMixedLowFile, BstMixedLowFile);
+        % Delete intermediate files
+        file_delete({file_fullpath(BstCerebFile), file_fullpath(BstCerebLowFile)}, 1);
+        db_reload_subjects(iSubject);
+    end
 else
     BstAsegFile = [];
 end

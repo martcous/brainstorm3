@@ -1,4 +1,4 @@
-function DataMat = in_data_ascii( DataFile )
+function [DataMat, ChannelMat] = in_data_ascii( DataFile )
 % IN_DATA_ASCII: Read an ASCII EEG file.
 %
 % INPUT:
@@ -10,7 +10,7 @@ function DataMat = in_data_ascii( DataFile )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -24,7 +24,7 @@ function DataMat = in_data_ascii( DataFile )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2016
+% Authors: Francois Tadel, 2008-2017
 
 
 %% ===== GET OPTIONS =====
@@ -33,13 +33,14 @@ OPTIONS = bst_get('ImportEegRawOptions');
 
 
 %% ===== READ ASCII FILE =====
-% Initialize returned structure
+% Initialize returned structures
 DataMat = db_template('DataMat');
 DataMat.Comment  = 'EEG/ASCII';
 DataMat.DataType = 'recordings';
 DataMat.Device   = 'Unknown';
+ChannelMat = [];
 % Read file
-DataMat.F = in_ascii(DataFile, OPTIONS.SkipLines);
+DataMat.F = in_ascii(DataFile, OPTIONS.SkipLines, OPTIONS.isChannelName);
 if isempty(DataMat.F)
     DataMat = [];
     bst_error(['Cannot read file: "' DataFile '"'], 'Import RAW EEG data', 0);
@@ -57,6 +58,22 @@ end
 DataMat.Time = ((0:size(DataMat.F,2)-1) ./ OPTIONS.SamplingRate - OPTIONS.BaselineDuration);
 % ChannelFlag
 DataMat.ChannelFlag = ones(size(DataMat.F,1), 1);
+
+% If channel names is included: extract and convert data matrix to numeric values
+if OPTIONS.isChannelName
+    % Get channel names
+    chNames = DataMat.F(:,1);
+    % Get data values
+    DataMat.F = cellfun(@str2num, DataMat.F(:,2:end));
+    % Create channel file
+    ChannelMat = db_template('channelmat');
+    ChannelMat.Channel = repmat(db_template('channeldesc'), 1, length(chNames));
+    [ChannelMat.Channel.Type] = deal('EEG');
+    [ChannelMat.Channel.Name] = deal(chNames{:});
+end
+% Replace NaN with 0
+DataMat.F(isnan(DataMat.F)) = 0;
+
 % Apply voltage units (in Brainstorm: recordings are stored in Volts)
 switch (OPTIONS.VoltageUnits)
     case '\muV'

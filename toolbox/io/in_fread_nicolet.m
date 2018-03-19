@@ -7,7 +7,7 @@ function F = in_fread_nicolet(sFile, iEpoch, SamplesBounds, iChannels)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -34,6 +34,13 @@ if (nargin < 3) || isempty(SamplesBounds)
         SamplesBounds = sFile.epochs(iEpoch).samples;
     end
 end
+
+% % PATCH FOR UNKNOWN ERROR:
+% % A user reported the obj structure not being saved correctly in the file link on MacOS, trying to reopen the Nicolet file
+% % http://neuroimage.usc.edu/forums/t/error-in-loading-the-nicolet-eeg-data/4093/6
+% if isempty(sFile.header.obj)
+%     sFile.header.obj = NicoletFile(sFile.filename);
+% end
 
 % Read data block
 F = getdata(sFile.header.obj, iEpoch, SamplesBounds + 1, sFile.header.selchan(iChannels))';

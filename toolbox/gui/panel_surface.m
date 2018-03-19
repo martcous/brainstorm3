@@ -19,7 +19,7 @@ function varargout = panel_surface(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -76,7 +76,7 @@ function bstPanelNew = CreatePanel() %#ok<DEFNU>
     jPanelOptions.setLayout(BoxLayout(jPanelOptions, BoxLayout.Y_AXIS));
     jPanelOptions.setBorder(BorderFactory.createEmptyBorder(7,7,0,7));
         % ===== SURFACE OPTIONS =====
-        jPanelSurfaceOptions = gui_river([1,1], [1,8,1,4], 'Surface options');              
+        jPanelSurfaceOptions = gui_river([1,1], [1,8,1,4], 'Surface options');
             % Alpha title 
             jLabelAlphaTitle = gui_component('label', jPanelSurfaceOptions, 'br', 'Transp.:');
             % Alpha slider
@@ -1231,7 +1231,7 @@ function isOk = SetSurfaceData(hFig, iTess, dataType, dataFile, isStat) %#ok<DEF
                 end
             end
             % Display units
-            DisplayUnits = [];
+            DisplayUnits = GlobalData.DataSet(iDS).Timefreq(iTimefreq).DisplayUnits;
             % Set figure data
             setappdata(hFig, 'Timefreq', TfInfo);
             % Display options panel
@@ -1267,10 +1267,18 @@ function isOk = SetSurfaceData(hFig, iTess, dataType, dataFile, isStat) %#ok<DEF
             TessInfo(iTess).Data = [];
             TessInfo(iTess).DataWmat = [];
     end
+    % Grid smoothing: enable by default, except for time units
+    if isAnatomy
+        TessInfo(iTess).DataSource.GridSmooth = isempty(DisplayUnits) || ~ismember(DisplayUnits, {'s','ms','t'});
+    end
     % Add colormap of the surface to the figure
     if ~isempty(ColormapType)
         TessInfo(iTess).ColormapType = ColormapType;
         bst_colormaps('AddColormapToFigure', hFig, ColormapType, DisplayUnits);
+    end
+    % If the display units are in time: do not threshold the surface by default
+    if isequal(DisplayUnits, 's')
+        TessInfo(iTess).DataThreshold = 0;
     end
     % Update figure appdata
     setappdata(hFig, 'Surface', TessInfo);
@@ -1841,6 +1849,7 @@ function hs = PlotMri(hFig, posXYZ)
     OPTIONS.OverlayAbsolute  = sColormapData.isAbsoluteValues;
     OPTIONS.isMipAnatomy     = MriOptions.isMipAnatomy;
     OPTIONS.isMipFunctional  = MriOptions.isMipFunctional;
+    OPTIONS.UpsampleImage    = MriOptions.UpsampleImage;
     OPTIONS.MipAnatomy       = TessInfo(iTess).MipAnatomy;
     OPTIONS.MipFunctional    = TessInfo(iTess).MipFunctional;
     % Plot cuts
@@ -1959,21 +1968,21 @@ function TessInfo = UpdateOverlayCube(hFig, iTess)
         TessInfo(iTess).OverlayCube = OverlayCube;
     % ===== DISPLAY SURFACE/GRIDS =====
     else
-        % === INTERPOLATION MRI<->SURFACE ===
-        [sSurf, iSurf] = bst_memory('LoadSurface', SurfaceFile);
-        tess2mri_interp = bst_memory('GetTess2MriInterp', iSurf);
-        % If no interpolation tess<->mri accessible : exit
-        if isempty(tess2mri_interp)
-           return 
-        end
         % Progress bar
         isProgressBar = bst_progress('isVisible');
         bst_progress('start', 'Display MRI', 'Updating values...');
         % === INTERPOLATION MRI<->GRID ===
         if isVolumeGrid
             % Compute interpolation
-            MriInterp = bst_memory('GetGrid2MriInterp', iDS, iResult);
+            MriInterp = bst_memory('GetGrid2MriInterp', iDS, iResult, TessInfo.DataSource.GridSmooth);
+        % === INTERPOLATION MRI<->SURFACE ===
         else
+            [sSurf, iSurf] = bst_memory('LoadSurface', SurfaceFile);
+            tess2mri_interp = bst_memory('GetTess2MriInterp', iSurf);
+            % If no interpolation tess<->mri accessible : exit
+            if isempty(tess2mri_interp)
+               return 
+            end
             % Only surface interpolation is needed
             MriInterp = tess2mri_interp;
         end

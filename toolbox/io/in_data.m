@@ -1,10 +1,10 @@
-function [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( DataFile, ChannelMat, FileFormat, ImportOptions, nbCall)
+function [ImportedData, ChannelMat, nChannels, nTime, ImportOptions, DateOfStudy] = in_data( DataFile, ChannelMat, FileFormat, ImportOptions, nbCall)
 % IN_DATA: Import any type of EEG/MEG recordings files.
 %
-% USAGE:  [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( DataFile, [], FileFormat, ImportOptions, nbCall ) 
-%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( DataFile, [], FileFormat, ImportOptions )    % Considered as first call
-%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( DataFile, [], FileFormat )                   % Display the import GUI
-%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( sFile, ChannelMat, FileFormat, ...)            % Same calls, but specify the sFile/ChannelMat structures
+% USAGE:  [ImportedData, ChannelMat, nChannels, nTime, ImportOptions, DateOfStudy] = in_data( DataFile, [], FileFormat, ImportOptions, nbCall ) 
+%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions, DateOfStudy] = in_data( DataFile, [], FileFormat, ImportOptions )    % Considered as first call
+%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions, DateOfStudy] = in_data( DataFile, [], FileFormat )                   % Display the import GUI
+%         [ImportedData, ChannelMat, nChannels, nTime, ImportOptions, DateOfStudy] = in_data( sFile, ChannelMat, FileFormat, ...)            % Same calls, but specify the sFile/ChannelMat structures
 %
 % INPUT:
 %    - DataFile      : Full path to a recordings file (called 'data' files in Brainstorm)
@@ -24,7 +24,7 @@ function [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( 
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -38,7 +38,7 @@ function [ImportedData, ChannelMat, nChannels, nTime, ImportOptions] = in_data( 
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2016
+% Authors: Francois Tadel, 2008-2018
 
 %% ===== PARSE INPUTS ===== 
 if (nargin < 5) || isempty(nbCall)
@@ -77,11 +77,12 @@ end
 % Initialize returned variables
 ImportedData = [];
 nTime = [];
+DateOfStudy = [];
 % Get temporary directory
 tmpDir = bst_get('BrainstormTmpDir');
 [filePath, fileBase, fileExt] = bst_fileparts(DataFile);
 % Reading as raw continuous?
-isRaw = ismember(FileFormat, {'FIF', 'CTF', 'CTF-CONTINUOUS', '4D', 'KIT', 'KDF', 'ITAB', 'EEG-ANT-CNT', 'EEG-ANT-MSR', 'EEG-BRAINAMP', 'EEG-DELTAMED', 'EEG-COMPUMEDICS-PFS', 'EEG-EGI-RAW', 'EEG-NEUROSCAN-CNT', 'EEG-NEUROSCAN-EEG', 'EEG-NEUROSCAN-AVG', 'EEG-EDF', 'EEG-BDF', 'EEG-EEGLAB', 'EEG-GTEC', 'EEG-MANSCAN', 'EEG-MICROMED', 'EEG-NEURALYNX', 'EEG-BLACKROCK', 'EEG-RIPPLE', 'EEG-NEURONE', 'EEG-NEUROSCOPE', 'EEG-NICOLET', 'EEG-NK', 'EEG-SMR', 'SPM-DAT', 'NIRS-BRS', 'BST-DATA', 'BST-BIN', 'EYELINK', 'EEG-EDF'});
+isRaw = ismember(FileFormat, {'FIF', 'CTF', 'CTF-CONTINUOUS', '4D', 'KIT', 'RICOH', 'KDF', 'ITAB', 'EEG-ANT-CNT', 'EEG-ANT-MSR', 'EEG-BRAINAMP', 'EEG-DELTAMED', 'EEG-COMPUMEDICS-PFS', 'EEG-EGI-RAW', 'EEG-NEUROSCAN-CNT', 'EEG-NEUROSCAN-EEG', 'EEG-NEUROSCAN-AVG', 'EEG-EDF', 'EEG-BDF', 'EEG-EEGLAB', 'EEG-GTEC', 'EEG-MANSCAN', 'EEG-MICROMED', 'EEG-NEURALYNX', 'EEG-BLACKROCK', 'EEG-RIPPLE', 'EEG-NEURONE', 'EEG-NEUROSCOPE', 'EEG-NICOLET', 'EEG-NK', 'EEG-SMR', 'SPM-DAT', 'NIRS-BRS', 'BST-DATA', 'BST-BIN', 'EYELINK', 'EEG-EDF'});
 
 
 %% ===== READ RAW FILE =====
@@ -105,7 +106,11 @@ if isRaw
         if ~isempty(errMsg) && ImportOptions.DisplayMessages
             java_dialog('warning', errMsg, 'Open raw EEG/MEG recordings');
         end
-    end    
+    end
+    % Get acquisition date
+    if isfield(sFile, 'acq_date') && ~isempty(sFile.acq_date)
+        DateOfStudy = sFile.acq_date;
+    end
 
     % Display import GUI
     if (nbCall == 1) && ImportOptions.DisplayMessages
@@ -260,7 +265,7 @@ if isRaw
         sFile.prop.destCtfComp = sFile.prop.currCtfComp;
     end
     % No SSP
-    if ~ImportOptions.UseSsp && ~isempty(ChannelMat) && ~isempty(ChannelMat.Projector)
+    if ~ImportOptions.UseSsp && ~isempty(ChannelMat) && isfield(ChannelMat, 'Projector') && ~isempty(ChannelMat.Projector)
         % Remove projectors that are not already applied
         iProjDel = find([ChannelMat.Projector.Status] ~= 2);
         ChannelMat.Projector(iProjDel) = [];
@@ -465,9 +470,35 @@ else
         end
     end
     % Read file
-    [sFile, ChannelMat, errMsg, DataMat] = in_fopen(DataFile, FileFormat);
+    [tmp, ChannelMatData, errMsg, DataMat] = in_fopen(DataFile, FileFormat);
     if isempty(DataMat) || ~isempty(errMsg)
         return;
+    end
+    % If there is no channel file yet, use the one from the input file
+    if isempty(ChannelMat) && ~isempty(ChannelMatData)
+        ChannelMat = ChannelMatData;
+    % Reorganize data to fit the existing channel mat
+    elseif ~isempty(ChannelMat) && ~isempty(ChannelMatData) && ~isequal({ChannelMat.Channel.Name}, {ChannelMatData.Channel.Name})
+        % Get list of channels in the format of the existing channel file 
+        DataMatReorder = DataMat;
+        DataMatReorder.F = zeros(length(ChannelMat.Channel), size(DataMat.F,2));
+        DataMatReorder.ChannelFlag = -1 * ones(length(ChannelMat.Channel),1);
+        for i = 1:length(ChannelMat.Channel)
+            iCh = find(strcmpi(ChannelMat.Channel(i).Name, {ChannelMatData.Channel.Name}));
+            % If the channel is not found: try a different convention if it is a bipolar channel
+            if isempty(iCh) && any(ChannelMat.Channel(i).Name == '-')
+                iDash = find(ChannelMat.Channel(i).Name == '-',1);
+                chNameBip = [ChannelMat.Channel(i).Name(iDash+1:end), ChannelMat.Channel(i).Name(1:iDash-1)];
+                iCh = find(strcmpi(chNameBip, {ChannelMatData.Channel.Name}));
+            end
+            if ~isempty(iCh)
+                DataMatReorder.F(i,:) = DataMat.F(iCh,:);
+                DataMatReorder.ChannelFlag(i) = DataMat.ChannelFlag(iCh);
+            end
+        end
+        DataMat = DataMatReorder;
+        % Empty the channel file matrix, so it is not saved in the destination folder
+        ChannelMat = [];
     end
     
     % ===== SAVE DATA MATRIX IN BRAINSTORM FORMAT =====

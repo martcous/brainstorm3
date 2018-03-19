@@ -8,7 +8,7 @@ function varargout = process_extract_values( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -761,9 +761,11 @@ function [newMat, newFileType, matName] = Extract(sProcess, sInputs, OPTIONS)
         newMat{1}.HeadModelFile = LoadedMat{1}.HeadModelFile;
         newMat{1}.HeadModelType = LoadedMat{1}.HeadModelType;
         newMat{1}.SurfaceFile   = LoadedMat{1}.SurfaceFile;
+        newMat{1}.nAvg          = LoadedMat{1}.nAvg;
     % Else: Create a new empty matrix structure
     else
         newMat = {db_template('matrixmat')};
+        newMat{1}.nAvg = LoadedMat{1}.nAvg;
         if (OPTIONS.Dim == 0)
             newMat = repmat(newMat, 1, length(LoadedMat));
             % Copy channel names
@@ -771,6 +773,7 @@ function [newMat, newFileType, matName] = Extract(sProcess, sInputs, OPTIONS)
                 for i = 1:length(LoadedMat)
                     newMat{i}.Description = LoadedMat{i}.Description;
                     newMat{i}.ChannelFlag = LoadedMat{i}.ChannelFlag;
+                    newMat{i}.nAvg        = LoadedMat{i}.nAvg;
                 end
             end
         end

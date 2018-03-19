@@ -7,7 +7,7 @@ function varargout = process_simulate_recordings( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -139,7 +139,7 @@ function OutputFiles = Run(sProcess, sInput) %#ok<DEFNU>
     % Get surface from the head model
     SurfaceFile = HeadModelMat.SurfaceFile;
     % Get scout structures
-    sScouts = process_extract_scout('GetScoutsInfo', sProcess, sInput, SurfaceFile, AtlasList);
+    [sScouts, AtlasNames] = process_extract_scout('GetScoutsInfo', sProcess, sInput, SurfaceFile, AtlasList);
     if isempty(sScouts)
         return;
     end
@@ -180,8 +180,10 @@ function OutputFiles = Run(sProcess, sInput) %#ok<DEFNU>
     ImageGridAmp = sparse([],[],[],nSources, nTime, sum(cellfun(@length, {sScouts.Vertices}))*nTime);
     % Fill matrix
     for i = 1:length(sScouts)
+        % Is this a volume or surface atlas
+        isVolumeAtlas = panel_scout('ParseVolumeAtlas', AtlasNames{i});
         % Get source indices
-        iSourceRows = bst_convert_indices(sScouts(i).Vertices, nComponents, HeadModelMat.GridAtlas, 0);
+        iSourceRows = bst_convert_indices(sScouts(i).Vertices, nComponents, HeadModelMat.GridAtlas, ~isVolumeAtlas);
         % Replicate scout values into all the sources
         ImageGridAmp(iSourceRows,:) = repmat(sMatrix.Value(i,:), length(iSourceRows), 1);
     end

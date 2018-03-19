@@ -5,7 +5,7 @@ function [ iSurface ] = db_add_surface( iSubject, FileName, Comment, SurfaceType
 %
 % INPUT:
 %    - iSubject    : Indice of the subject where to add the surface
-%    - FileName    : Relative path to the file in which the tessalation is defined
+%    - FileName    : Relative path to the file in which the tesselation is defined
 %    - Comment     : Surface description
 %    - SurfaceType : String {'Cortex', 'Scalp', 'InnerSkull', 'OuterSkull', 'Other'}
 % OUTPUT:
@@ -15,7 +15,7 @@ function [ iSurface ] = db_add_surface( iSubject, FileName, Comment, SurfaceType
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.

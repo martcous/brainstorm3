@@ -39,7 +39,7 @@ function varargout = bst_report( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -200,7 +200,7 @@ function Snapshot(SnapType, FileName, Comment, varargin)
     end
     % Hide scouts
     ScoutsOptions = panel_scout('GetScoutsOptions');
-    if ~strcmpi(ScoutsOptions.showSelection, 'none')
+    if ~isempty(ScoutsOptions) && ~strcmpi(ScoutsOptions.showSelection, 'none')
         panel_scout('SetScoutShowSelection', 'none');
     end
                 
@@ -530,7 +530,7 @@ function Snapshot(SnapType, FileName, Comment, varargin)
         end
     end
     % Restore scouts
-    if ~strcmpi(ScoutsOptions.showSelection, 'none')
+    if ~isempty(ScoutsOptions) && ~strcmpi(ScoutsOptions.showSelection, 'none')
         panel_scout('SetScoutShowSelection', ScoutsOptions.showSelection);
     end
     % Restore Brainstorm window
@@ -699,7 +699,16 @@ function html = PrintToHtml(Reports, isFullReport)
             % Get error description
             if isstruct(Reports{iErrors(1),2}) && ~isempty(Reports{iErrors(1),2})
                 ProcName    = func2str(Reports{iErrors(1),2}.Function);
-                ProcComment = [Reports{iErrors(1),2}.SubGroup, ' > ', Reports{iErrors(1),2}.Comment];
+                subGroups   = Reports{iErrors(1),2}.SubGroup;
+                if iscellstr(subGroups)
+                    groupComment = subGroups{1};
+                    for iGroup = 2:length(subGroups)
+                        groupComment = [groupComment ' > ' subGroups{iGroup}];
+                    end
+                else
+                    groupComment = subGroups;
+                end
+                ProcComment = [groupComment, ' > ', Reports{iErrors(1),2}.Comment];
             else
                 ProcName    = 'Unknown';
                 ProcComment = 'Unknown';
@@ -718,15 +727,17 @@ function html = PrintToHtml(Reports, isFullReport)
     end
 
     % ===== HEADER ====
+    % Get interface scaling
+    f = bst_get('InterfaceScaling') / 100;
     % HTML header
     html = ['<HTML>' 10 ...
             '<STYLE type="text/css">' 10 ...
-            'h2 {font-size: 1.05em; font-weight: bold; padding-top: 12px; padding-bottom: 12px;}' 10 ...
+            'h2 {font-size: ' num2str(11 * f) 'px; font-weight: bold; padding-top: 12px; padding-bottom: 12px;}' 10 ...
             'td {padding: 2px 2px 2px 2px; }' 10 ...
-            '.bord td { border-width: 1px; border-style: solid; border-color: #bbbbbb; background-color: #f2f2f2;}' 10 ...
+            '.bord td { border-width: 1px; border-style: solid; border-color: #bbbbbb; background-color: #f2f2f2; font: normal ' num2str(8 * f) 'px Verdana, Arial, Helvetica, sans-serif; }' 10 ...
             '.link {text-decoration: none; color: #0000a0;}' 10 ...
             '</STYLE>' 10 10 ...
-            '<BODY style="margin: 5px 10px 10px 10px; font: normal .95em Verdana, Arial, Helvetica, sans-serif; background-color: #e8e8e8;">' 10 ...
+            '<BODY style="margin: 5px 10px 10px 10px; font: normal ' num2str(8 * f) 'px Verdana, Arial, Helvetica, sans-serif; background-color: #e8e8e8;">' 10 ...
             '<TITLE>Brainstorm process report</TITLE>' 10];
     % Elapsed time
     if ~isempty(iStart) && ~isempty(iStop)
@@ -883,7 +894,11 @@ function FileNames = GetFilesList(entry, isOneList, isStandard)
     % Entry = {sFiles1, sFiles2}
     elseif iscell(entry) && isstruct(entry{1})
         if isOneList
-            entry = [entry{:}];
+            try
+                FileNames = [entry{:}];
+            catch
+                FileNames = [];
+            end
             FileNames = {entry.FileName};
         else
             FileNames = {{entry{1}.FileName}, {entry{2}.FileName}};
@@ -891,7 +906,11 @@ function FileNames = GetFilesList(entry, isOneList, isStandard)
     % Entry = {{'filenameA1.mat', 'filenameA2.mat'}, {'filenameB1.mat', 'filenameB2.mat'}}
     elseif iscell(entry) && iscell(entry{1})
         if isOneList
-            FileNames = [entry{:}];
+            try
+                FileNames = [entry{:}];
+            catch
+                FileNames = [];
+            end
         else
             FileNames = entry;            
         end

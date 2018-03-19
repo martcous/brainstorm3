@@ -10,7 +10,7 @@ function varargout = panel_record(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -495,10 +495,10 @@ function RawKeyCallback(keyEvent) %#ok<DEFNU>
         % Update time window
         if (iEpochNew ~= iEpoch)
             ctrl.jSpinnerEpoch.setValue(iEpochNew);
-            ValidateTimeWindow();
+            ValidateTimeWindow(0);
         elseif (iStartNew ~= iStart)
             ctrl.jSliderStart.setValue(iStartNew);
-            ValidateTimeWindow();
+            ValidateTimeWindow(0);
         end
         drawnow;
         % Release mutex
@@ -565,8 +565,12 @@ end
 
 
 %% ===== VALIDATE TIME WINDOW =====
-function ValidateTimeWindow()
+function ValidateTimeWindow(isProgress)
     global GlobalData;
+    % Parse inputs
+    if (nargin < 1) || isempty(isProgress)
+        isProgress = 1;
+    end
     % Get panel controls
     ctrl = bst_get('PanelControls', 'Record');
     if isempty(ctrl)
@@ -588,11 +592,19 @@ function ValidateTimeWindow()
     % Save length in user preferences
     if (smpLength <= length(Time))
         RawViewerOptions = bst_get('RawViewerOptions');
-        RawViewerOptions.MaxSamples = smpLength;
+        RawViewerOptions.PageDuration = smpLength / sfreq;
         bst_set('RawViewerOptions', RawViewerOptions);
+    end
+    % Progress bar
+    if isProgress
+        bst_progress('start', 'Update display', 'Loading recordings...');
     end
     % Reload recordings
     ReloadRecordings();
+    % Close progress bar
+    if isProgress
+        bst_progress('stop');
+    end
 end
 
 
@@ -670,14 +682,16 @@ function UpdateDisplayOptions(hFig)
             DispName = 'All';
         % Average reference
         elseif strcmpi(TsInfo.MontageName, 'Average reference')
-            % Get montage
-            [sTmp, iTmp, isLocal] = panel_montage('GetMontageAvgRef', hFig, [], 1);
-            % Change the title depending on the type of average reference
-            if isLocal
-                DispName = '<HTML><B>Local</B> Avg Ref';
-            else
-                DispName = 'Avg Ref';
-            end
+%             % Get montage
+%             [sTmp, iTmp, isLocal] = panel_montage('GetMontageAvgRef', hFig, [], 1);
+%             % Change the title depending on the type of average reference
+%             if isLocal
+%                 DispName = '<HTML><B>Local</B> Avg Ref';
+%             else
+%                 DispName = 'Avg Ref';
+%             end
+            % Always global average reference
+            DispName = 'Avg Ref';
         % Temporary montages:  Remove the [tmp] tag or display
         elseif ~isempty(strfind(TsInfo.MontageName, '[tmp]'))
             DispName = ['<HTML><I>' strrep(TsInfo.MontageName, '[tmp]', '') '</I>'];
@@ -1077,7 +1091,9 @@ function ReloadRecordings(isForced)
         isEpochChanged = 0;
     end
     % Progress bar
-    bst_progress('start', 'Update display', 'Loading recordings...');
+    % bst_progress('start', 'Update display', 'Loading recordings...');
+    set(gcf, 'Pointer', 'watch');
+    drawnow;
     % Epoch changed: Update events list
     if isEpochChanged
         % Get selected events group
@@ -1100,7 +1116,8 @@ function ReloadRecordings(isForced)
     % Flushes the display updates
     drawnow;
     % Close progress bar
-    bst_progress('stop');
+    % bst_progress('stop');
+    set(gcf, 'Pointer', 'arrow');
 end
 
 
@@ -1659,10 +1676,14 @@ end
 
 
 %% ===== EVENT TYPE: DELETE =====
-% USAGE:  EventTypeDel(iEvents)    : Delete by indices
-%         EventTypeDel(eventLabel) : Delete by name
-%         EventTypeDel()           : Delete selected event type
-function EventTypeDel(target)
+% USAGE:  EventTypeDel(iEvents,    isForced=0) : Delete by indices
+%         EventTypeDel(eventLabel, isForced=0) : Delete by name
+%         EventTypeDel()                       : Delete selected event type
+function EventTypeDel(target, isForced)
+    % Parse inputs
+    if (nargin < 2) || isempty(isForced)
+        isForced = 0;
+    end
     % Get ALL events (ignore current epoch)
     events = GetEvents([], 1);
     if isempty(events)
@@ -1685,7 +1706,7 @@ function EventTypeDel(target)
         nEvents = nEvents + size(events(iEvents(i)).times,2);
     end
     % If some events are going to be deleted: Ask user confirmation
-    if (nEvents > 0)
+    if (nEvents > 0) && ~isForced
         if ~java_dialog('confirm', sprintf('Delete %d events ?', nEvents), 'Delete events')
             return
         end
@@ -2111,7 +2132,6 @@ function EventOccurAdd(iEvent)
     % Select event
     SetSelectedEvent(iEvent, iOccur);
     % Update figures
-    %ReplotFigures();
     ReplotEvents();
 end
 
@@ -2167,22 +2187,6 @@ end
 
 %% ===== REJECT TIME SEGMENT =====
 function RejectTimeSegment()
-%     % Get raw time series figure
-%     [hFig,iFig,iDS] = bst_figures('GetCurrentFigure', '2D');
-%     if isempty(hFig)
-%         return
-%     end
-%     % Get time selection window
-%     GraphSelection = getappdata(hFig, 'GraphSelection');
-%     % Check time selection: if no selection, just returns
-%     isTimeSelection = ~isempty(GraphSelection) && ~isinf(GraphSelection(2));
-%     if ~isTimeSelection
-%         return;
-%     end
-%     % Create/Get event "BAD"
-%     iEvent = EventTypeAdd('BAD');
-%     % Add an occurrence (current time selection)
-%     EventOccurAdd(iEvent);
     ToggleEvent('BAD');
 end
 
@@ -2450,9 +2454,10 @@ function CallProcessOnRaw(ProcessName)
         GlobalData.DataSet(iDS).Measures.sFile = DataMat.F;
         % Update channel mat
         ChannelMat = in_bst_channel(GlobalData.DataSet(iDS).ChannelFile);
-        GlobalData.DataSet(iDS).Channel    = ChannelMat.Channel;
-        GlobalData.DataSet(iDS).MegRefCoef = ChannelMat.MegRefCoef;
-        GlobalData.DataSet(iDS).Projector  = ChannelMat.Projector;
+        GlobalData.DataSet(iDS).Channel         = ChannelMat.Channel;
+        GlobalData.DataSet(iDS).MegRefCoef      = ChannelMat.MegRefCoef;
+        GlobalData.DataSet(iDS).Projector       = ChannelMat.Projector;
+        GlobalData.DataSet(iDS).IntraElectrodes = ChannelMat.IntraElectrodes;
     else
         DataMat = in_bst_data(DataFile, 'Events');
         GlobalData.DataSet(iDS).Measures.sFile.events = DataMat.Events;

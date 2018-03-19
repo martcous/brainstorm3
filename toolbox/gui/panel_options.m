@@ -6,7 +6,7 @@ function varargout = panel_options(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -20,7 +20,7 @@ function varargout = panel_options(varargin)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2009-2017
+% Authors: Francois Tadel, 2009-2018
 
 eval(macro_method);
 end
@@ -45,10 +45,11 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     jPanelSystem = gui_river([5 2], [0 15 8 15], 'System');
         jCheckUpdates    = gui_component('CheckBox', jPanelSystem, 'br', 'Automatic updates', [], [], []);
         if (bst_get('MatlabVersion') >= 804)
-            jCheckSmooth = gui_component('CheckBox', jPanelSystem, 'br', 'Use smooth graphics', [], [], []);
+            jCheckSmooth = gui_component('CheckBox', jPanelSystem, 'br', 'Use smooth Matlab graphics', [], [], []);
         else
             jCheckSmooth = [];
         end
+        jCheckDownsample = gui_component('CheckBox', jPanelSystem, 'br', 'Downsample recordings for faster display', [], [], []);
         jCheckGfp        = gui_component('CheckBox', jPanelSystem, 'br', 'Display GFP over time series', [], [], []);
         jCheckForceComp  = gui_component('CheckBox', jPanelSystem, 'br', 'Force mat-files compression (slower)', [], [], []);
         jCheckIgnoreMem  = gui_component('CheckBox', jPanelSystem, 'br', 'Ignore memory warnings', [], [], []);
@@ -69,16 +70,18 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         end
     jPanelLeft.add('br hfill', jPanelOpengl);
     % ===== LEFT: INTERFACE SCALING =====
-    jPanelScaling = gui_river([5 2], [0 0 5 0], 'Interface scaling');
+    jPanelScaling = gui_river([5 2], [0 0 5 0], 'Interface scaling (%)');
         % Slider labels
         labelTable = java.util.Hashtable();
-        labelTable.put(uint32(1), gui_component('label',[],'','100%'));
-        labelTable.put(uint32(2), gui_component('label',[],'','125%'));
-        labelTable.put(uint32(3), gui_component('label',[],'','150%'));
-        labelTable.put(uint32(4), gui_component('label',[],'','175%'));
-        labelTable.put(uint32(5), gui_component('label',[],'','200%'));
+        labelTable.put(uint32(1), gui_component('label',[],'','100'));
+        labelTable.put(uint32(2), gui_component('label',[],'','125'));
+        labelTable.put(uint32(3), gui_component('label',[],'','150'));
+        labelTable.put(uint32(4), gui_component('label',[],'','200'));
+        labelTable.put(uint32(5), gui_component('label',[],'','250'));
+        labelTable.put(uint32(6), gui_component('label',[],'','300'));
+        labelTable.put(uint32(7), gui_component('label',[],'','400'));
         % Slider config
-        jSliderScaling = JSlider(1,5,1);
+        jSliderScaling = JSlider(1,7,1);
         jSliderScaling.setLabelTable(labelTable);
         jSliderScaling.setPaintTicks(1);
         jSliderScaling.setMajorTickSpacing(1);
@@ -103,6 +106,12 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         jButtonFtDir = gui_component('Button', jPanelImport, [], '...', [], [], @FtDirectory_Callback);
         jButtonFtDir.setMargin(Insets(2,2,2,2));
         jButtonFtDir.setFocusable(0);
+        % SPM folder
+        gui_component('Label', jPanelImport, 'br', 'SPM toolbox: ', [], [], []);
+        jTextSpmDir   = gui_component('Text', jPanelImport, 'br hfill', '', [], [], []);
+        jButtonSpmDir = gui_component('Button', jPanelImport, [], '...', [], [], @SpmDirectory_Callback);
+        jButtonSpmDir.setMargin(Insets(2,2,2,2));
+        jButtonSpmDir.setFocusable(0);
     jPanelRight.add('br hfill', jPanelImport);
     
     % ===== RIGHT: SIGNAL PROCESSING =====
@@ -138,7 +147,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     gui_component('Label', jPanelBottom, '', labelBottom, [], [], []);
     gui_component('Label', jPanelBottom, 'hfill', ' ');
     gui_component('Button', jPanelBottom, 'right', 'Cancel', [], [], @ButtonCancel_Callback);
-    gui_component('Button', jPanelBottom, [],         'Save',   [], [], @ButtonSave_Callback);
+    gui_component('Button', jPanelBottom, [], 'Save', [], [], @ButtonSave_Callback);
 
     % ===== LOAD OPTIONS =====
     LoadOptions();
@@ -158,9 +167,10 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         jCheckForceComp.setSelected(bst_get('ForceMatCompression'));
         jCheckUpdates.setSelected(bst_get('AutoUpdates'));
         jCheckGfp.setSelected(bst_get('DisplayGFP'));
+        jCheckDownsample.setSelected(bst_get('DownsampleTimeSeries') > 0);
         jCheckIgnoreMem.setSelected(bst_get('IgnoreMemoryWarnings'));
         if ~isempty(jCheckSmooth)
-            jCheckSmooth.setSelected(bst_get('GraphicsSmoothing'));
+            jCheckSmooth.setSelected(bst_get('GraphicsSmoothing') > 0);
         end
         switch bst_get('DisableOpenGL')
             case 0
@@ -175,11 +185,19 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                 end
         end
         % Interface scaling
-        jSliderScaling.setValue(round((bst_get('InterfaceScaling') - 100) / 25) + 1);
-        % Temporary directory
+        switch (bst_get('InterfaceScaling'))
+            case 100,       jSliderScaling.setValue(1);
+            case 125,       jSliderScaling.setValue(2);
+            case 150,       jSliderScaling.setValue(3);
+            case {175,200}, jSliderScaling.setValue(4);
+            case 250,       jSliderScaling.setValue(5);
+            case 300,       jSliderScaling.setValue(6);
+            case 400,       jSliderScaling.setValue(7);
+        end    
+        % Directory
         jTextTempDir.setText(bst_get('BrainstormTmpDir'));
-        % FieldTrip directory
         jTextFtDir.setText(bst_get('FieldTripDir'));
+        jTextSpmDir.setText(bst_get('SpmDir'));
         % Use signal processing toolbox
         isToolboxInstalled = (exist('fir2', 'file') > 0);
         jCheckUseSigProc.setEnabled(isToolboxInstalled);
@@ -195,6 +213,11 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         bst_set('AutoUpdates', jCheckUpdates.isSelected());
         bst_set('DisplayGFP',  jCheckGfp.isSelected());
         bst_set('IgnoreMemoryWarnings',  jCheckIgnoreMem.isSelected());
+        if jCheckDownsample.isSelected()
+            bst_set('DownsampleTimeSeries', 5);
+        else
+            bst_set('DownsampleTimeSeries', 0);
+        end
         if ~isempty(jCheckSmooth)
             % Update value
             isSmoothing = jCheckSmooth.isSelected();
@@ -232,7 +255,15 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         
         % ===== INTERFACE SCALING =====
         previousScaling = bst_get('InterfaceScaling');
-        InterfaceScaling = 100 + (jSliderScaling.getValue() - 1) * 25;
+        switch (jSliderScaling.getValue())
+            case 1,  InterfaceScaling = 100;
+            case 2,  InterfaceScaling = 125;
+            case 3,  InterfaceScaling = 150;
+            case 4,  InterfaceScaling = 200;
+            case 5,  InterfaceScaling = 250;
+            case 6,  InterfaceScaling = 300;
+            case 7,  InterfaceScaling = 400;
+        end
         bst_set('InterfaceScaling', InterfaceScaling);
         
         % ===== DATA IMPORT =====
@@ -250,7 +281,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         % FieldTrip directory
         oldFtDir = bst_get('FieldTripDir');
         newFtDir = char(jTextFtDir.getText());
-        % If directory changed
         if ~file_compare(oldFtDir, newFtDir)
             % Folder doesn't exist
             if ~isempty(newFtDir) && ~file_exist(newFtDir)
@@ -259,6 +289,19 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                 java_dialog('warning', 'Selected folder does not contain a valid FieldTrip install. Ignoring...');
             else
                 bst_set('FieldTripDir', newFtDir);
+            end
+        end
+        % SPM directory
+        oldSpmDir = bst_get('SpmDir');
+        newSpmDir = char(jTextSpmDir.getText());
+        if ~file_compare(oldSpmDir, newSpmDir)
+            % Folder doesn't exist
+            if ~isempty(newSpmDir) && ~file_exist(newSpmDir)
+                java_dialog('warning', 'Selected SPM folder doesn''t exist. Ignoring...');
+            elseif ~isempty(newSpmDir) && ~file_exist(bst_fullfile(newSpmDir, 'spm.m'))
+                java_dialog('warning', 'Selected folder does not contain a valid SPM install. Ignoring...');
+            else
+                bst_set('SpmDir', newSpmDir);
             end
         end
         
@@ -335,6 +378,35 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             warning('off', 'MATLAB:rmpath:DirNotFound');
             allFtPath = genpath(initDir);
             rmpath(allFtPath);
+            warning('on', 'MATLAB:rmpath:DirNotFound');
+        end
+    end
+
+%% ===== SPM DIRECTORY SELECTION =====
+    % Callback for '...' button
+    function SpmDirectory_Callback(varargin)
+        % Get the initial path
+        initDir = bst_get('SpmDir', 1);
+        % Open 'Select directory' dialog
+        spmDir = uigetdir(initDir, 'Select SPM directory.');
+        % If no directory was selected : return without doing anything
+        if (isempty(spmDir) || (spmDir(1) == 0) || (~isempty(initDir) && file_compare(initDir, spmDir)))
+            return;
+        % Directory is not avalid SPM folder
+        elseif ~file_exist(bst_fullfile(spmDir, 'spm.m'))
+            java_dialog('warning', 'Selected folder does not contain a valid SPM install.');
+            return;
+        end
+        % Else : update control text
+        jTextSpmDir.setText(spmDir);
+        % Focus main brainstorm figure
+        jBstFrame = bst_get('BstFrame');
+        jBstFrame.setVisible(1);
+        % Remove all the previous SPM folders from the path
+        if ~isempty(initDir) && isdir(initDir)
+            warning('off', 'MATLAB:rmpath:DirNotFound');
+            allSpmPath = genpath(initDir);
+            rmpath(allSpmPath);
             warning('on', 'MATLAB:rmpath:DirNotFound');
         end
     end

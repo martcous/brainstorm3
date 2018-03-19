@@ -5,7 +5,7 @@ function [sFile, ChannelMat] = in_fopen_micromed(DataFile)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -20,7 +20,7 @@ function [sFile, ChannelMat] = in_fopen_micromed(DataFile)
 % =============================================================================@
 %
 % Authors:  Guillaume Becq, 2010
-%           Adapted by Francois Tadel for Brainstorm, 2017
+%           Adapted by Francois Tadel for Brainstorm, 2018
 
 
 %% ===== READ HEADER =====
@@ -137,7 +137,12 @@ hdr.trigger_area.length = fread(fid, 1, 'ulong');
 % Read channel order
 fseek(fid, hdr.code_area.start, 'bof');
 for iChannel = 1:hdr.num_channels
-    hdr.code(iChannel) = fread(fid, 1, 'ushort');
+    switch (hdr.header_type)
+        case 3
+            hdr.code(iChannel) = fread(fid, 1, 'uint8');
+        otherwise
+            hdr.code(iChannel) = fread(fid, 1, 'ushort');
+    end
 end
 
 % Read electrodes info
@@ -151,8 +156,10 @@ for iChannel = 1:hdr.num_channels      % Instead of 1:MAX_LAB (MAX_LAB = 640)
     hdr.electrode(iChannel).type_value = channelType;
     % PIL : positive input label
     hdr.electrode(iChannel).PIL = strtrim(fread(fid, [1 6], '*char'));
+    hdr.electrode(iChannel).PIL = strtrim(hdr.electrode(iChannel).PIL(hdr.electrode(iChannel).PIL ~= 0));
     % NIL : positive input label
     hdr.electrode(iChannel).NIL = strtrim(fread(fid, [1 6], '*char'));
+    hdr.electrode(iChannel).NIL = strtrim(hdr.electrode(iChannel).NIL(hdr.electrode(iChannel).NIL ~= 0));
     % Reference
     if bitget(channelType, 1)
         hdr.electrode(iChannel).reference = ['Bipolar ' hdr.electrode(iChannel).PIL '/' hdr.electrode(iChannel).NIL];
@@ -398,11 +405,13 @@ sFile.header       = hdr;
 % Comment: short filename
 [fPath, fBase, fExt] = bst_fileparts(DataFile);
 sFile.comment = fBase;
-
+% Acquisition date
+sFile.acq_date = datestr(datenum([hdr.acquisition.year, hdr.acquisition.month, hdr.acquisition.day]), 'dd-mmm-yyyy');
 
 
 %% ===== CREATE EMPTY CHANNEL FILE =====
 nChannels = hdr.num_channels;
+ChannelMat = db_template('channelmat');
 ChannelMat.Comment = [sFile.device ' channels'];
 ChannelMat.Channel = repmat(db_template('channeldesc'), [1, nChannels]);
 % Separate channels with different amplitude ranges
@@ -437,6 +446,9 @@ for iChan = 1:nChannels
     ChannelMat.Channel(iChan).Loc = [sFile.header.electrode(iChan).x; ...
                                      sFile.header.electrode(iChan).y; ...
                                      sFile.header.electrode(iChan).z];
+    if isequal(ChannelMat.Channel(iChan).Loc, [0;0;0])
+        ChannelMat.Channel(iChan).Loc = [];
+    end
     % Comment = reference
     ChannelMat.Channel(iChan).Comment = hdr.electrode(iChan).reference;
     % Fields that are not relevant here

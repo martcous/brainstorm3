@@ -40,7 +40,7 @@ function varargout = bst_figures( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -54,7 +54,7 @@ function varargout = bst_figures( varargin )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2016
+% Authors: Francois Tadel, 2008-2017; Martin Cousineau, 2017
 
 eval(macro_method);
 end
@@ -165,7 +165,7 @@ function [hFig, iFig, isNewFig] = CreateFigure(iDS, FigureId, CreateMode, Constr
         % ==== CREATE FIGURE ====
         switch(FigureId.Type)
             case {'DataTimeSeries', 'ResultsTimeSeries'}
-                hFig =figure_timeseries ('CreateFigure', FigureId);
+                hFig = figure_timeseries ('CreateFigure', FigureId);
                 FigHandles = db_template('DisplayHandlesTimeSeries');
             case 'Topography'
                 hFig = figure_3d('CreateFigure', FigureId);
@@ -237,15 +237,23 @@ function [selChan,errMsg] = GetChannelsForFigure(iDS, iFig)
     errMsg = [];
     selChan = [];
     % If no modality for the figure: return empty list of channels
-    if isempty(GlobalData.DataSet(iDS).Figure(iFig).Id.Modality)
+    Modality = GlobalData.DataSet(iDS).Figure(iFig).Id.Modality;
+    if isempty(Modality)
         return;
+    end
+    % If "stat" modality: replace with the first display modality
+    if strcmpi(Modality, 'stat')
+        [tmp, dispMod] = channel_get_modalities(GlobalData.DataSet(iDS).Channel);
+        if ~isempty(dispMod)
+            Modality = dispMod{1};
+        end
     end
     % Get selected channels
     selChan = good_channel(GlobalData.DataSet(iDS).Channel, ...
                            GlobalData.DataSet(iDS).Measures.ChannelFlag, ...
-                           GlobalData.DataSet(iDS).Figure(iFig).Id.Modality);
+                           Modality);
     % If opening EEG/SEEG/ECOG topography or 3D view: exclude (0,0,0) points
-    if ismember(GlobalData.DataSet(iDS).Figure(iFig).Id.Type, {'Topography', '3DViz'}) && ismember(GlobalData.DataSet(iDS).Figure(iFig).Id.Modality, {'EEG','SEEG','ECOG'})
+    if ismember(GlobalData.DataSet(iDS).Figure(iFig).Id.Type, {'Topography', '3DViz'}) && ismember(Modality, {'EEG','SEEG','ECOG'})
         % Get the locations for all the channels
         chanLoc = {GlobalData.DataSet(iDS).Channel(selChan).Loc};
         % Detect the channels without location or at (0,0,0)
@@ -262,10 +270,10 @@ function [selChan,errMsg] = GetChannelsForFigure(iDS, iFig)
     % Make sure that something can be displayed in this figure
     if isempty(selChan) && ~isempty(GlobalData.DataSet(iDS).Measures.ChannelFlag)
         % Get the channels again, but ignoring the bad channels
-        selChanAll = good_channel(GlobalData.DataSet(iDS).Channel, [], GlobalData.DataSet(iDS).Figure(iFig).Id.Modality);
+        selChanAll = good_channel(GlobalData.DataSet(iDS).Channel, [], Modality);
         % Display an error message, depending on the results of this request
         if ~isempty(selChanAll)
-            errMsg = ['Nothing to display: All the "' GlobalData.DataSet(iDS).Figure(iFig).Id.Modality '" channels are marked as bad or do not have 3D positions.'];
+            errMsg = ['Nothing to display: All the "' Modality '" channels are marked as bad or do not have 3D positions.'];
         else
             % THAT IS FINE TO SHOW DATA WITHOUT ANY CHANNEL
             %error(['There are no "' GlobalData.DataSet(iDS).Figure(iFig).Id.Modality '" channel in this channel file']);
@@ -395,7 +403,7 @@ function UpdateFigureName(hFig)
             TsInfo = getappdata(hFig, 'TsInfo');
             if isempty(TsInfo) || isempty(TsInfo.MontageName) || ~isempty(TsInfo.RowNames)
                 strMontage = 'All';
-            elseif strcmpi(TsInfo.MontageName, 'Average reference')
+            elseif strcmpi(TsInfo.MontageName, 'Average reference') || ~isempty(strfind(TsInfo.MontageName, '(local average ref)'))
                 strMontage = 'AvgRef';
             elseif strcmpi(TsInfo.MontageName, 'Bad channels')
                 strMontage = 'Bad';
@@ -419,13 +427,22 @@ function UpdateFigureName(hFig)
                     figureName = [figureName '/' sStudy.Matrix(iMatrix).Comment];
                 end
             end
-            
         case 'Topography'
             figureName = [figureNameModality  'TP: ' figureName];
         case '3DViz'
             figureName = [figureNameModality  '3D: ' figureName];
         case 'MriViewer'
-            figureName = [figureNameModality  'MriViewer: ' figureName];
+            TessInfo = getappdata(hFig, 'Surface');
+            if isempty(TessInfo) || ~isempty(TessInfo.OverlayCube) || ~isempty(TessInfo.DataSource.FileName)
+                figureName = [figureNameModality  'MriViewer: ' figureName];
+            else
+                [sSubject, iSubject, iAnatomy] = bst_get('MriFile', TessInfo.SurfaceFile);
+                if ~isempty(iAnatomy)
+                    figureName = [figureNameModality  'MriViewer: ' figureName, '/', sSubject.Anatomy(iAnatomy).Comment];
+                else
+                    figureName = [figureNameModality  'MriViewer: ' figureName];
+                end
+            end
         case 'Timefreq'
             figureName = [figureNameModality  'TF: ' figureName];
         case 'Spectrum'
@@ -454,7 +471,7 @@ function UpdateFigureName(hFig)
                             TsInfo = getappdata(hFig, 'TsInfo');
                             if isempty(TsInfo) || isempty(TsInfo.MontageName) || ~isempty(TsInfo.RowNames)
                                 strMontage = 'All';
-                            elseif strcmpi(TsInfo.MontageName, 'Average reference')
+                            elseif strcmpi(TsInfo.MontageName, 'Average reference') || ~isempty(strfind(TsInfo.MontageName, '(local average ref)'))
                                 strMontage = 'AvgRef';
                             elseif strcmpi(TsInfo.MontageName, 'Bad channels')
                                 strMontage = 'Bad';
@@ -468,7 +485,11 @@ function UpdateFigureName(hFig)
                             figureName = ['Sources: ' figureName];
                             imageFile = ['/' sStudy.Results(iFile).Comment];
                         case {'timefreq'}
-                            figureName = ['Connect: ' figureName];
+                            if isequal(FigureId.SubType, 'trialimage')
+                                figureName = ['Image: ' figureName];
+                            else
+                                figureName = ['Connect: ' figureName];
+                            end
                             imageFile = ['/' sStudy.Timefreq(iFile).Comment];
                         case 'matrix'
                             figureName = ['Matrix: ' figureName];
@@ -752,23 +773,13 @@ function DeleteFigure(hFigure, varargin)
 
     % ===== MRI VIEWER =====
     % Check for modifications of the MRI (MRI Viewer figures only)
-    if strcmpi(Figure.Id.Type, 'MriViewer') && (Figure.Handles.isModifiedMri || Figure.Handles.isModifiedEeg)
-        % If MRI was modified : ask to save the changes
-        if Figure.Handles.isModifiedMri
-            if java_dialog('confirm', ['The MRI volume was modified.' 10 'Save changes ?'], 'MRI Viewer')
-                % Save MRI
-                isCloseAccepted = figure_mri('SaveMri', hFig);
-                % If the save function refused to close the window
-                if ~isCloseAccepted
-                    return
-                end
-            end
-        end
-        % If EEG was modified: ask to save the changes
-        if Figure.Handles.isModifiedEeg
-            if java_dialog('confirm', ['The channel file was modified.' 10 'Save changes ?'], 'MRI Viewer')
-                % Save channel file modifications
-                figure_mri('SaveEeg', hFig);
+    if strcmpi(Figure.Id.Type, 'MriViewer') && Figure.Handles.isModifiedMri
+        if java_dialog('confirm', ['The MRI volume was modified.' 10 'Save changes ?'], 'MRI Viewer')
+            % Save MRI
+            isCloseAccepted = figure_mri('SaveMri', hFig);
+            % If the save function refused to close the window
+            if ~isCloseAccepted
+                return
             end
         end
         % Unload anatomy
@@ -1037,6 +1048,9 @@ function SetCurrentFigure(hFig, Type)
                 if gui_brainstorm('isTabVisible', 'Dipoles')
                     panel_dipoles('CurrentFigureChanged_Callback', hFig);
                 end
+                if gui_brainstorm('isTabVisible', 'iEEG')
+                    panel_ieeg('CurrentFigureChanged_Callback', hFig);
+                end
             end
         case 'TypeTF'
             % Only when figure changed (whatever the type of the figure is)
@@ -1219,9 +1233,15 @@ end
 function hNewFig = CloneFigure(hFig)
     global GlobalData;
     % Get figure description in GlobalData
-    [hFig, iFig, iDS] = GetFigure(hFig);
+    [tmp, iFig, iDS] = GetFigure(hFig);
     if isempty(iFig)
-        warning('Brainstorm:FigureNotRegistered','Figure is not registered in Brainstorm.');
+        if strcmpi(get(hFig, 'Tag'), 'FigHistograms')
+            % Histograms are not registered figures but can still be cloned
+            % using their UserData
+            hNewFig = view_histogram(hFig.UserData.FileNames, hFig.UserData.forceOld);
+        else
+            warning('Brainstorm:FigureNotRegistered','Figure is not registered in Brainstorm.');
+        end
         return;
     end
     FigureId = GlobalData.DataSet(iDS).Figure(iFig).Id;
@@ -1229,7 +1249,10 @@ function hNewFig = CloneFigure(hFig)
     AppData = getappdata(hFig);
     
     % ===== COPY TF FIGURE =====
-    if strcmpi(FigureId.Type, 'Timefreq')       
+    if strcmpi(FigureId.Type, 'Spectrum')
+        hNewFig = view_spectrum(AppData.Timefreq.FileName, AppData.Timefreq.DisplayMode, AppData.Timefreq.RowName, 1);
+        return;
+    elseif strcmpi(FigureId.Type, 'Timefreq')
         hNewFig = view_timefreq(AppData.Timefreq.FileName, AppData.Timefreq.DisplayMode, AppData.Timefreq.RowName, 1);
         return;
     end
@@ -1254,7 +1277,7 @@ function hNewFig = CloneFigure(hFig)
         copyobj(hChild, hNewFig);
         % Copy figure colormap
         set(hNewFig, 'Colormap', get(hFig, 'Colormap'));
-        % Copy Figure UsageData
+        % Copy Figure UserData
         set(hNewFig, 'UserData', get(hFig, 'UserData'));
 
         % === Copy and update figure AppData ===
@@ -1325,6 +1348,19 @@ function hNewFig = CloneFigure(hFig)
         SetCurrentFigure(hNewFig, '2D');
         % Update figure
         figure_timeseries('PlotFigure', iDS, iNewFig);
+        
+    % ===== MATRIX =====
+    elseif strcmpi(FigureId.Type, 'ResultsTimeSeries')
+        % Update new figure appdata
+        fieldList = fieldnames(AppData);
+        for iField = 1:length(fieldList)
+            setappdata(hNewFig, fieldList{iField}, AppData.(fieldList{iField}));
+        end
+        GlobalData.DataSet(iDS).Figure(iNewFig).SelectedChannels = GlobalData.DataSet(iDS).Figure(iFig).SelectedChannels;
+        % Update figure selection
+        SetCurrentFigure(hNewFig, '2D');
+        % Update figure
+        ReloadFigures(hNewFig);
     end
     % Copy figure name
     set(hNewFig, 'Name', get(hFig, 'Name'));
@@ -1413,8 +1449,11 @@ end
 
 
 %% ===== VIEW TOPOGRAPHY =====
-function ViewTopography(hFig)
+function ViewTopography(hFig, UseSmoothing)
     global GlobalData;
+    if (nargin < 2) || isempty(UseSmoothing)
+        UseSmoothing = 1;
+    end
     % Get figure description
     [hFig, iFig, iDS] = GetFigure(hFig);
     if isempty(iDS) || isempty(GlobalData.DataSet(iDS).ChannelFile)
@@ -1491,7 +1530,7 @@ function ViewTopography(hFig)
                 % Open topography figure
                 view_topography(DataFile, Modalities{i}, '3DOptodes');
             else
-                view_topography(DataFile, Modalities{i}, '2DSensorCap');
+                view_topography(DataFile, Modalities{i}, '2DSensorCap', [], UseSmoothing);
             end
         end
     end
@@ -1694,6 +1733,7 @@ function ReloadFigures(FigureTypes, isFastUpdate)
                         if TsInfo.AutoScaleY
                             GlobalData.DataSet(iDS).Figure(iFig).Handles.DataMinMax = [];
                         end
+                        GlobalData.DataSet(iDS).Figure(iFig).Handles.DownsampleFactor = [];
                         isOk = figure_timeseries('PlotFigure', iDS, iFig, [], [], isFastUpdate);
                         % The figure could not be refreshed: close it
                         if ~isOk
@@ -1773,9 +1813,9 @@ function ReloadFigures(FigureTypes, isFastUpdate)
                     if ~isempty(ChannelFile)
                         isMarkers = ~isempty(Figure.Handles.hSensorMarkers) && ishandle(Figure.Handles.hSensorMarkers(1)) && strcmpi(get(Figure.Handles.hSensorMarkers(1), 'Visible'), 'on');
                         isLabels  = ~isempty(Figure.Handles.hSensorLabels) && ishandle(Figure.Handles.hSensorLabels(1)) && strcmpi(get(Figure.Handles.hSensorLabels(1), 'Visible'), 'on');
-                        ElectrodeInfo  = getappdata(Figure.hFigure, 'ElectrodeInfo');
+                        hElectrodeObjects = [findobj(Figure.hFigure, 'Tag', 'ElectrodeGrid'); findobj(Figure.hFigure, 'Tag', 'ElectrodeDepth'); findobj(Figure.hFigure, 'Tag', 'ElectrodeWire')];
                         % Update 3D electrodes
-                        if ~isempty(ElectrodeInfo)
+                        if ~isempty(hElectrodeObjects)
                             figure_3d('PlotSensors3D', iDS, iFig);
                         % Update channels display
                         elseif isMarkers || isLabels

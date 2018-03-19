@@ -5,7 +5,7 @@ function isOk = bst_license()
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -49,7 +49,7 @@ jFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 jFrame.setIconImage(IconLoader.ICON_APP.getImage());
 % Set callback
 java_setcb(jFrame, 'WindowClosingCallback', @CloseDialog);
-jFrame.setPreferredSize(Dimension(510, 590));
+jFrame.setPreferredSize(java_scaled('dimension', 510, 590));
 jPanelMain = jFrame.getContentPane();
 
 % === HEADER PANEL ===
@@ -76,21 +76,13 @@ jPanelMain.add(jScrollText, BorderLayout.CENTER);
 
 % === AGREE BUTTONS ===
 jPanelAgree = gui_river([10,10], [10,20,0,20]);
-jPanelAgree.setPreferredSize(Dimension(500, 60));
+jPanelAgree.setPreferredSize(java_scaled('dimension', 500, 60));
     % Text
-    jPanelAgree.add(JLabel('Do you agree with this copyright notice ?'));
-    % Separator
-    jPanelAgree.add('hfill', JLabel(' '));
-    % CANCEL button
-    jButtonCancel = JButton('Cancel');
-    jButtonCancel.setFont(Font('Tahoma', 1, 12));
-    java_setcb(jButtonCancel, 'ActionPerformedCallback', @jButtonCancel_Callback);
-    jPanelAgree.add(jButtonCancel);
-    % AGREE button
-    jButtonAgree = JButton('I agree');
-    jButtonAgree.setFont(Font('Tahoma', 1, 12));
-    java_setcb(jButtonAgree, 'ActionPerformedCallback', @jButtonAgree_Callback);
-    jPanelAgree.add(jButtonAgree);
+    gui_component('label', jPanelAgree, '', 'Do you agree with this copyright notice ?');
+    gui_component('label', jPanelAgree, 'hfill', ' ');
+    % BUttons
+    gui_component('button', jPanelAgree, '', '<HTML><B>Cancel</B>', [], [], @jButtonCancel_Callback);
+    gui_component('button', jPanelAgree, '', '<HTML><B>I agree</B>', [], [], @jButtonAgree_Callback);
 jPanelMain.add(jPanelAgree, BorderLayout.SOUTH);
     
 % Display figure

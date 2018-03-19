@@ -8,7 +8,7 @@ function OutputFiles = bst_connectivity(FilesA, FilesB, OPTIONS)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -552,6 +552,35 @@ for iFile = 1:length(FilesA)
                 iB = reshape(repmat(1:nB, nA, 1), [], 1);
                 % Compute the PLV in time for each pair
                 R(:,:,iBand) = exp(1i * (angle(HA(iA,:)) - angle(HB(iB,:))));
+            end
+            % We don't want to compute again the frequency bands
+            FreqBands = [];
+        
+        % ==== PTE ====
+        case 'pte'
+            bst_progress('text', sprintf('Calculating: PTE [%dx%d]...', size(sInputA.Data,1), size(sInputB.Data,1)));
+            Comment = 'PTE';
+            if OPTIONS.isNormalized
+                Comment = [Comment, ' [Normalized]'];
+            end
+            Comment = [Comment, ': '];
+            % Get frequency bands
+            nFreqBands = size(OPTIONS.Freqs, 1);
+            BandBounds = process_tf_bands('GetBounds', OPTIONS.Freqs);
+            % Intitialize returned matrix
+            R = zeros(size(sInputA.Data,1), size(sInputB.Data,1), nFreqBands);
+            % Loop on each frequency band
+            for iBand = 1:nFreqBands
+                % Band-pass filter in one frequency band + Apply Hilbert transform
+                DataAband = process_bandpass('Compute', sInputA.Data, sfreq, BandBounds(iBand,1), BandBounds(iBand,2), 'bst-fft-fir', OPTIONS.isMirror);
+                % Compute PTE
+                [dPTE, PTE] = PhaseTE_MF(permute(DataAband, [2 1]));
+                if OPTIONS.isNormalized
+                    R(:,:,iBand) = dPTE;
+                    R(:,:,iBand) = R(:,:,iBand) - 0.5; % Center result around 0
+                else
+                    R(:,:,iBand) = PTE;
+                end
             end
             % We don't want to compute again the frequency bands
             FreqBands = [];

@@ -12,7 +12,7 @@ function varargout = panel_display(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -678,6 +678,26 @@ function SetDisplayOptions(sOptions)
     end
     drawnow;
     bst_progress('stop');
+end
+
+
+%% ===== SET SMOOTH DISPLAY =====
+function SetSmoothDisplay(HighResolution, hFigs) %#ok<DEFNU>
+    % Get figures
+    if (nargin < 2) || isempty(hFigs)
+        [hFigs,iFig,iDS] = bst_figures('GetFiguresByType', 'timefreq');
+    end
+    % Update the display of all figures
+    for i = 1:length(hFigs)
+        % Update the figure configuration
+        TfInfo = getappdata(hFigs(i), 'Timefreq');
+        TfInfo.HighResolution = HighResolution;
+        setappdata(hFigs(i), 'Timefreq', TfInfo);
+        % Update display
+        figure_timefreq('UpdateFigurePlot', hFigs(i));
+    end
+    % Update panel
+    UpdatePanel(hFigs(end));
 end
 
 

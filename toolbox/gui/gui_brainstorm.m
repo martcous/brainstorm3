@@ -6,6 +6,7 @@ function varargout = gui_brainstorm( varargin )
 %                   gui_brainstorm('ShowToolTab',    TabName)
 %       iProtocol = gui_brainstorm('CreateProtocol', ProtocolName, UseDefaultAnat, UseDefaultChannel)
 %                   gui_brainstorm('DeleteProtocol', ProtocolName)
+%                   gui_brainstorm('SetExplorationMode', ExplorationMode)    % ExplorationMode = {'Subjects','StudiesSubj','StudiesCond'}
 % BrainstormDbDir = gui_brainstorm('SetDatabaseFolder')
 %  [keyEvent,...] = gui_brainstorm('ConvertKeyEvent', ev)
 
@@ -13,7 +14,7 @@ function varargout = gui_brainstorm( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -27,7 +28,7 @@ function varargout = gui_brainstorm( varargin )
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2016
+% Authors: Francois Tadel, 2008-2017
 
 eval(macro_method);
 end
@@ -92,7 +93,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
     
     % ===== Menu: FILE =====
     if (GlobalData.Program.GuiLevel == 1)
-        jMenuFile = gui_component('Menu', jMenuBar, [], 'File', [], [], [], fontSize);
+        jMenuFile = gui_component('Menu', jMenuBar, [], ' File ', [], [], [], fontSize);
         
         % === PROTOCOL ===
         gui_component('MenuItem', jMenuFile, [], 'New protocol', IconLoader.ICON_FOLDER_NEW, [], @(h,ev)bst_call(@gui_edit_protocol, 'create'), fontSize);
@@ -136,19 +137,19 @@ function GUI = CreateWindow() %#ok<DEFNU>
         gui_component('MenuItem', jMenuFile, [], 'Quit', IconLoader.ICON_RESET, [], @closeWindow_Callback, fontSize);
     end
     
-%     % ==== Menu COLORMAPS ====
-%     jMenuColormaps = gui_component('Menu', jMenuBar, [], 'Colormaps', [], [], [], fontSize);
-%         bst_colormaps('CreateAllMenus', jMenuColormaps, [], 1);
+    % ==== Menu COLORMAPS ====
+    jMenuColormaps = gui_component('Menu', jMenuBar, [], 'Colormaps', [], [], [], fontSize);
+        bst_colormaps('CreateAllMenus', jMenuColormaps, [], 1);
 
-    % ==== Menu HELP ====
-    jMenuSupport = gui_component('Menu', jMenuBar, [], 'Help', [], [], [], fontSize);
+    % ==== Menu UPDATE ====
+    jMenuUpdate = gui_component('Menu', jMenuBar, [], ' Update ', [], [], [], fontSize);
         % UPDATE BRAINSTORM
         if ~(exist('isdeployed', 'builtin') && isdeployed)
-            gui_component('MenuItem', jMenuSupport, [], 'Update Brainstorm', [], [], @(h,ev)bst_update(1), fontSize);
+            gui_component('MenuItem', jMenuUpdate, [], 'Update Brainstorm', IconLoader.ICON_RELOAD, [], @(h,ev)bst_update(1), fontSize);
         end
         % UPDATE OPENMEEG
         if (GlobalData.Program.GuiLevel == 1)
-            jMenuOpenmeeg = gui_component('Menu', jMenuSupport, [], 'Update OpenMEEG', [], [], [], fontSize);
+            jMenuOpenmeeg = gui_component('Menu', jMenuUpdate, [], 'Update OpenMEEG', IconLoader.ICON_RELOAD, [], [], fontSize);
             gui_component('MenuItem', jMenuOpenmeeg, [], 'Download', [], [], @(h,ev)bst_call(@DownloadOpenmeeg), fontSize);
             gui_component('MenuItem', jMenuOpenmeeg, [], 'Install', [], [], @(h,ev)bst_call(@bst_openmeeg, 'update'), fontSize);
             if strcmpi(bst_get('OsType',0), 'win64')
@@ -158,21 +159,29 @@ function GUI = CreateWindow() %#ok<DEFNU>
             jMenuOpenmeeg.addSeparator();
             gui_component('MenuItem', jMenuOpenmeeg, [], 'OpenMEEG help', [], [], @(h,ev)web('http://neuroimage.usc.edu/brainstorm/Tutorials/TutBem', '-browser'), fontSize);
         end
-        jMenuSupport.addSeparator();
+        
+    % ==== Menu HELP ====
+    jMenuSupport = gui_component('Menu', jMenuBar, [], ' Help ', [], [], [], fontSize);
         % BUG REPORTS
         % gui_component('MenuItem', jMenuSupport, [], 'Bug reporting...', [], [], @(h,ev)gui_show('panel_bug', 'JavaWindow', 'Bug reporting', [], 1, 0), []);
         % WEBSITE
-        gui_component('MenuItem', jMenuSupport, [], 'Brainstorm website', [], [], @(h,ev)web('http://neuroimage.usc.edu/brainstorm/', '-browser'), fontSize);
-        gui_component('MenuItem', jMenuSupport, [], 'Brainstorm forum', [], [], @(h,ev)web('http://neuroimage.usc.edu/forums/', '-browser'), fontSize);
+        gui_component('MenuItem', jMenuSupport, [], 'Brainstorm website', IconLoader.ICON_EXPLORER, [], @(h,ev)web('http://neuroimage.usc.edu/brainstorm/', '-browser'), fontSize);
+        gui_component('MenuItem', jMenuSupport, [], 'Brainstorm forum', IconLoader.ICON_EXPLORER, [], @(h,ev)web('http://neuroimage.usc.edu/forums/', '-browser'), fontSize);
         jMenuSupport.addSeparator();
         % USAGE STATS
-        gui_component('MenuItem', jMenuSupport, [], 'Usage statistics', [], [], @(h,ev)bst_userstat, fontSize);
+        gui_component('MenuItem', jMenuSupport, [], 'Usage statistics', IconLoader.ICON_TS_DISPLAY, [], @(h,ev)bst_userstat, fontSize);
         jMenuSupport.addSeparator();
         % LICENSE
-        gui_component('MenuItem', jMenuSupport, [], 'License',       [], [], @(h,ev)bst_license(), fontSize);
+        gui_component('MenuItem', jMenuSupport, [], 'License',       IconLoader.ICON_EDIT, [], @(h,ev)bst_license(), fontSize);
         % RELEASE NOTES
         updatesfile = bst_fullfile(bst_get('BrainstormHomeDir'), 'doc', 'updates.txt');
-        gui_component('MenuItem', jMenuSupport, [], 'Release notes', [], [], @(h,ev)view_text(updatesfile, 'Release notes', 1), fontSize);
+        gui_component('MenuItem', jMenuSupport, [], 'Release notes', IconLoader.ICON_EDIT, [], @(h,ev)view_text(updatesfile, 'Release notes', 1), fontSize);
+        jMenuSupport.addSeparator();
+        % Guidelines
+        jMenuGuidelines = gui_component('Menu', jMenuSupport, [], 'Guidelines', IconLoader.ICON_FOLDER_OPEN, [], [], fontSize);
+        gui_component('MenuItem', jMenuGuidelines, [], 'Epileptogenicity maps', IconLoader.ICON_EDIT, [], @(h,ev)ShowGuidelines('epileptogenicity'), fontSize);
+        jMenuGuidelines.addSeparator();
+        gui_component('MenuItem', jMenuGuidelines, [], 'Close panel', IconLoader.ICON_EDIT, [], @(h,ev)gui_hide('Guidelines'), fontSize);
         
     % ===== TOOLBAR =====
     jToolbar = gui_component('Toolbar', jMenuBar);
@@ -346,19 +355,19 @@ function GUI = CreateWindow() %#ok<DEFNU>
     jSplitV.setResizeWeight(1.0);
     jSplitV.setDividerSize(round(6*InterfaceScaling));
     jSplitV.setBorder([]);
-
+    % Horizontal split panel 
+    jSplitH = java_create('javax.swing.JSplitPane', 'ILjava.awt.Component;Ljava.awt.Component;', javax.swing.JSplitPane.VERTICAL_SPLIT, jSplitV, jLayeredProcess);
+        
     % Regular interface
     if (GlobalData.Program.GuiLevel ~= 2)
-        % Horizontal split panel 
-        jSplitH = java_create('javax.swing.JSplitPane', 'ILjava.awt.Component;Ljava.awt.Component;', javax.swing.JSplitPane.VERTICAL_SPLIT, jSplitV, jLayeredProcess);
+        % Configure horizontal split pane
         jSplitH.setResizeWeight(1.0);
         jSplitH.setDividerSize(round(8*InterfaceScaling));
         jSplitH.setBorder([]);
         % Add panel to main frame
         jFramePanel.add(jSplitH, java.awt.BorderLayout.CENTER);
-    % Auto-pilot: No process tabs at the bottom
+    % Auto-pilot: No process tabs at the bottom (ignore horizontal split pane)
     else
-        jSplitH = java_create('javax.swing.JSplitPane', 'ILjava.awt.Component;Ljava.awt.Component;', javax.swing.JSplitPane.VERTICAL_SPLIT, jSplitV, jLayeredProcess);
         jFramePanel.add(jSplitV, java.awt.BorderLayout.CENTER);
     end
     % Pack JFrame
@@ -426,6 +435,8 @@ function GUI = CreateWindow() %#ok<DEFNU>
     GUI = struct(... % ==== Attributes ====
          'mainWindow', struct(...
              'jBstFrame',              jBstFrame, ...
+             'jSplitH',                jSplitH, ...
+             'jSplitV',                jSplitV, ...
              'jToolButtonSubject',     jToolButtonSubject, ...
              'jToolButtonStudiesSubj', jToolButtonStudiesSubj, ...
              'jToolButtonStudiesCond', jToolButtonStudiesCond, ...
@@ -611,7 +622,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
         % Create popup
         jPopupTab = java_create('javax.swing.JPopupMenu');
         % List possible tabs
-        panelList = {'Record', 'Filter', 'Surface', 'Scout', 'Cluster', 'Coordinates', 'Dipinfo', 'Command'};
+        panelList = {'Record', 'Filter', 'Surface', 'Scout', 'Cluster', 'Coordinates', 'Dipinfo', 'iEEG', 'Command', 'Spikes'};
         panelRemove = {};
         % List missing tabs
         for iPanel = 1:length(GlobalData.Program.GUI.panels)
@@ -694,8 +705,10 @@ function GUI = CreateWindow() %#ok<DEFNU>
         end
         % Get panel title
         panelTitle = jTabpaneProcess.getTitleAt(iSelPanel);
-        % If no data type selected and it's not Process2: select recordings
+        % Hide the tooloars when not wanted
         jToolbarB.setVisible(strcmpi(panelTitle, 'Process2'));
+        jToolbarA.setVisible(~strcmpi(panelTitle, 'Guidelines'));
+        jToolbarFilter.setVisible(~strcmpi(panelTitle, 'Guidelines'));
     end
 
 %% ===== PROCESS: DATA TYPE CHANGED =====
@@ -900,12 +913,14 @@ function SetCurrentProtocol(iProtocol)
     % ===== UPDATE GUI =====
     % Update tree model
     panel_protocols('UpdateTree');
-    %Update "Time Window" 
+    % Update "Time Window" 
     panel_time('UpdatePanel');
     % Reset processes and stat panels
     panel_nodelist('ResetAllLists');
     % Empty the clipboard
     bst_set('Clipboard', []);
+    % Close guidelines panel
+    gui_hide('Guidelines');
     
     % ===== CHECK FOLDERS =====
     % Check protocol folders
@@ -953,12 +968,12 @@ function SetCurrentProtocol(iProtocol)
                 % Update protocol
                 bst_set('ProtocolInfo', ProtocolInfo);
                 % Redrawing tree
-                UpdateProtocolsList();
+%                 UpdateProtocolsList();
                 panel_protocols('UpdateTree');
-                %%%%% DONT'T KNOW WHY WE HAVE TO RESTORE CALLBACK ON LINUX SYSTEMS ??? 
-                if ~ispc
-                    java_setcb(jModel, 'ContentsChangedCallback', bakCallback);
-                end
+%                 %%%%% DONT'T KNOW WHY WE HAVE TO RESTORE CALLBACK ON LINUX SYSTEMS ??? 
+%                 if ~ispc
+%                     java_setcb(jModel, 'ContentsChangedCallback', bakCallback);
+%                 end
             end
         else
             isRetry = 0;
@@ -1050,13 +1065,16 @@ end
 
 
 %% ===== SET SELECTED TAB =====
-function SetSelectedTab(tabTitle, isAutoSelect)
+function SetSelectedTab(tabTitle, isAutoSelect, containerName)
     % Parse inputs
+    if (nargin < 3) || isempty(containerName)
+        containerName = 'Tools';
+    end
     if (nargin < 2) || isempty(isAutoSelect)
         isAutoSelect = 1;
     end
     % Get Tools panel container
-    jTabpaneTools = bst_get('PanelContainer', 'Tools');
+    jTabpaneTools = bst_get('PanelContainer', containerName);
     % Check if the requirements are met to allow auto-select
     if isAutoSelect
         % If there are more than one figure: do not allow
@@ -1117,6 +1135,8 @@ function ShowToolTab(tabTitle)
             panel_scout('UpdatePanel');
         case 'Surface'
             panel_surface('UpdatePanel');
+        case 'iEEG'
+            panel_ieeg('UpdatePanel');
     end
     % Select tab
     SetSelectedTab(tabTitle, 0);
@@ -1300,6 +1320,10 @@ end
 function isDeleted = EmptyTempFolder()
     % Get temporary directory
     tmpDir = bst_get('BrainstormTmpDir');
+    % Make sure Matlab is not currently in a subfolder of the temp directory
+    if ~isempty(strfind(pwd, tmpDir)) && ~file_compare(pwd, tmpDir)
+        cd(tmpDir);
+    end
     % If directory exists
     if isdir(tmpDir)
         disp('BST> Emptying temporary directory...');
@@ -1345,6 +1369,32 @@ function SetFilterOption(FieldName, Value)
     bst_progress('start', 'File filters', 'Updating list...');
     panel_nodelist('UpdatePanel', [], 1);
     bst_progress('stop');
+end
+
+
+%% ===== SET EXPLORATION MODE =====
+function SetExplorationMode(ExplorationMode) %#ok<DEFNU>
+    global GlobalData;
+    GUI = GlobalData.Program.GUI.mainWindow;
+    % If the mode didn't change: don't do anything
+    if strcmpi(ExplorationMode, bst_get('Layout', 'ExplorationMode'))
+        return;
+    end
+    % Select appropriate button
+    switch (ExplorationMode)
+        case 'Subjects'
+            GUI.jToolButtonSubject.setSelected(1);
+        case 'StudiesSubj'
+            GUI.jToolButtonStudiesSubj.setSelected(1);
+        case 'StudiesCond'
+            GUI.jToolButtonStudiesCond.setSelected(1);
+        otherwise
+            error('Invalid exploration mode.');
+    end
+    % Update the Layout structure
+    bst_set('Layout', 'ExplorationMode', ExplorationMode);
+    % Update tree display
+    panel_protocols('UpdateTree');
 end
 
 
@@ -1459,4 +1509,30 @@ end
 %     contentLength = connection.getContentLength();
 % end
 
+
+%% ===== SHOW GUIDELINES =====
+function ShowGuidelines(ScenarioName)
+    % Close tab if it already exists
+    panelName = 'Guidelines';
+    if isTabVisible(panelName)
+        gui_hide(panelName);
+    end
+    % Resize the bottom panel
+    GUI = bst_get('BstControls');
+    InterfaceScaling = bst_get('InterfaceScaling') / 100;
+    Hmin = round(300 * InterfaceScaling);
+    Hfig = GUI.jBstFrame.getHeight();
+    if (Hfig - GUI.jSplitH.getDividerLocation() < Hmin)
+        GUI.jSplitH.setDividerLocation(uint32(Hfig - Hmin));
+    end
+    % Create guidelines panel
+    bstPanel = panel_guidelines('CreatePanel', ScenarioName);
+    % Open tab new tab
+    gui_show(bstPanel, 'BrainstormTab', 'process');
+
+    % Initialize first tab
+    panel_guidelines('SwitchPanel', 'next');
+    % Select tab
+    SetSelectedTab(panelName, 0, 'Process');
+end
 

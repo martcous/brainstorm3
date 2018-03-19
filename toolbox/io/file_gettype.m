@@ -14,7 +14,7 @@ function fileType = file_gettype( fileName )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -93,9 +93,9 @@ if ischar(fileName)
                 fileType = 'cortex';
             elseif ~isempty(strfind(fileName, '_scalp')) || ~isempty(strfind(fileName, '_skin')) || ~isempty(strfind(fileName, '_head'))
                 fileType = 'scalp';
-            elseif ~isempty(strfind(fileName, '_outerskull')) || ~isempty(strfind(fileName, '_outer_skull'))
+            elseif ~isempty(strfind(fileName, '_outerskull')) || ~isempty(strfind(fileName, '_outer_skull')) || ~isempty(strfind(fileName, '_oskull'))
                 fileType = 'outerskull';
-            elseif ~isempty(strfind(fileName, '_innerskull')) || ~isempty(strfind(fileName, '_inner_skull'))
+            elseif ~isempty(strfind(fileName, '_innerskull')) || ~isempty(strfind(fileName, '_inner_skull')) || ~isempty(strfind(fileName, '_iskull'))
                 fileType = 'innerskull';
             elseif ~isempty(strfind(fileName, '_skull'))
                 fileType = 'outerskull';
@@ -166,6 +166,8 @@ elseif isstruct(fileName)
         fileType = 'matrix';
     elseif isfield(sMat, 'VideoStart')
         fileType = 'videolink';
+    elseif isfield(sMat, 'Spikes')
+        fileType = 'spikes';
     else
         fileType = 'unknown';
     end

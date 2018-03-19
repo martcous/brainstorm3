@@ -17,7 +17,7 @@ function errorMsg = import_anatomy_bv(iSubject, BvDir, nVertices, isInteractive,
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -31,7 +31,7 @@ function errorMsg = import_anatomy_bv(iSubject, BvDir, nVertices, isInteractive,
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2012-2016
+% Authors: Francois Tadel, 2012-2018
 
 %% ===== PARSE INPUTS =====
 % Fiducials
@@ -87,25 +87,8 @@ if ~isempty(sSubject.Anatomy) || ~isempty(sSubject.Surface)
         bst_progress('stop');
         return;
     end
-    % Delete MRI
-    if ~isempty(sSubject.Anatomy)
-        file_delete(file_fullpath({sSubject.Anatomy.FileName}), 1);
-        sSubject.Anatomy(1:end) = [];
-    end
-    % Delete surfaces
-    if ~isempty(sSubject.Surface)
-        file_delete(file_fullpath({sSubject.Surface.FileName}), 1);
-        sSubject.Surface(1:end) = [];
-    end
-    % Empty defaults lists
-    sSubject.iAnatomy = [];
-    sSubject.iCortex = [];
-    sSubject.iScalp = [];
-    sSubject.iInnerSkull = [];
-    sSubject.iOuterSkull = [];
-    % Update subject structure
-    bst_set('Subject', iSubject, sSubject);
-    panel_protocols('UpdateNode', 'Subject', iSubject);
+    % Delete anatomy
+    sSubject = db_delete_anatomy(iSubject);
 end
 
 
@@ -241,17 +224,24 @@ if ~isInteractive || ~isempty(FidFile)
     % Use fiducials from file
     if ~isempty(FidFile)
         % Already loaded
-    % Set some random fiducial points
+    % Compute them from MNI transformation
     elseif isempty(sFid)
-        % Set some random fiducial points
-        NAS = [cubeSize(1)./2,  cubeSize(2),           cubeSize(3)./2];
-        LPA = [1,               cubeSize(2)./2,        cubeSize(3)./2];
-        RPA = [cubeSize(1),     cubeSize(2)./2,        cubeSize(3)./2];
-        if isempty(AC) || isempty(PC) || isempty(IH)
-            AC = [cubeSize(1)./2,  cubeSize(2)./2 + 20,   cubeSize(3)./2];
-            PC  = [cubeSize(1)./2,  cubeSize(2)./2 - 20,   cubeSize(3)./2];
-            IH  = [cubeSize(1)./2,  cubeSize(2)./2,        cubeSize(3)./2 + 50];
-        end
+%         NAS = [cubeSize(1)./2,  cubeSize(2),           cubeSize(3)./2];
+%         LPA = [1,               cubeSize(2)./2,        cubeSize(3)./2];
+%         RPA = [cubeSize(1),     cubeSize(2)./2,        cubeSize(3)./2];
+%         if isempty(AC) || isempty(PC) || isempty(IH)
+%             AC = [cubeSize(1)./2,  cubeSize(2)./2 + 20,   cubeSize(3)./2];
+%             PC  = [cubeSize(1)./2,  cubeSize(2)./2 - 20,   cubeSize(3)./2];
+%             IH  = [cubeSize(1)./2,  cubeSize(2)./2,        cubeSize(3)./2 + 50];
+%         end
+        NAS = [];
+        LPA = [];
+        RPA = [];
+        AC  = [];
+        PC  = [];
+        IH  = [];
+        isComputeMni = 1;
+        warning('BST> Import anatomy: Anatomical fiducials were not defined, using standard MNI positions for NAS/LPA/RPA.');
     % Else: use the defined ones
     else
         NAS = sFid.NAS;
@@ -263,7 +253,9 @@ if ~isInteractive || ~isempty(FidFile)
             IH = sFid.IH;
         end
     end
-    figure_mri('SetSubjectFiducials', iSubject, NAS, LPA, RPA, AC, PC, IH);
+    if ~isempty(NAS) || ~isempty(LPA) || ~isempty(RPA) || ~isempty(AC) || ~isempty(PC) || ~isempty(IH)
+        figure_mri('SetSubjectFiducials', iSubject, NAS, LPA, RPA, AC, PC, IH);
+    end
     % If the NAS/LPA/RPA are defined, but not the others: Compute them
     if ~isempty(NAS) && ~isempty(LPA) && ~isempty(RPA) % && isempty(AC) && isempty(PC) && isempty(IH)
         isComputeMni = 1;
@@ -279,15 +271,15 @@ else
     drawnow;
     bst_progress('stop');
     % Display help message: ask user to select fiducial points
-    jHelp = bst_help('MriSetup.html', 0);
+    % jHelp = bst_help('MriSetup.html', 0);
     % Wait for the MRI Viewer to be closed
     waitfor(hFig);
     % Close help window
-    jHelp.close();
+    % jHelp.close();
 end
 % Load SCS and NCS field to make sure that all the points were defined
-sMri = load(BstMriFile, 'SCS', 'NCS');
-if ~isfield(sMri, 'SCS') || isempty(sMri.SCS) || isempty(sMri.SCS.NAS) || isempty(sMri.SCS.LPA) || isempty(sMri.SCS.RPA) || isempty(sMri.SCS.R)
+sMri = load(BstMriFile);
+if ~isComputeMni && (~isfield(sMri, 'SCS') || isempty(sMri.SCS) || isempty(sMri.SCS.NAS) || isempty(sMri.SCS.LPA) || isempty(sMri.SCS.RPA) || isempty(sMri.SCS.R))
     errorMsg = ['Could not import BrainVISA folder: ' 10 10 'Some fiducial points were not defined properly in the MRI.'];
     if isInteractive
         bst_error(errorMsg, 'Import BrainVISA folder', 0);
@@ -378,7 +370,6 @@ if ~isempty(HeadFile)
     BstHeadHiFile = BstHeadHiFile{1};
     % Load MRI
     bst_progress('start', 'Import BrainVISA folder', 'Filling holes in the head surface...');
-    sMri = bst_memory('LoadMri', BstMriFile);
     % Load head surface
     sHead = load(BstHeadHiFile, 'Vertices', 'Faces', 'Comment');
     % Remove holes

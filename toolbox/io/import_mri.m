@@ -1,7 +1,8 @@
-function [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat, isInteractive)
+function [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat, isInteractive, isAutoAdjust)
 % IMPORT_MRI: Import a MRI file in a subject of the Brainstorm database
 % 
-% USAGE: [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat='ALL', isInteractive=0)
+% USAGE: [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat='ALL', isInteractive=0, isAutoAdjust=1)
+%               BstMriFiles = import_mri(iSubject, MriFiles, ...)   % Import multiple volumes at once
 %
 % INPUT:
 %    - iSubject  : Indice of the subject where to import the MRI
@@ -9,7 +10,8 @@ function [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat, isIntera
 %    - MriFile   : Full filename of the MRI to import (format is autodetected)
 %                  => if not specified : file to import is asked to the user
 %    - FileFormat : String, one on the file formats in in_mri
-%    - isInteractive : if 1, importation will be interactive (MRI is displayed after loading)
+%    - isInteractive : If 1, importation will be interactive (MRI is displayed after loading)
+%    - isAutoAdjust  : If isInteractive=0 and isAutoAdjust=1, relice/resample automatically without user confirmation
 % OUTPUT:
 %    - BstMriFile : Full path to the new file if success, [] if error
 
@@ -17,7 +19,7 @@ function [BstMriFile, sMri] = import_mri(iSubject, MriFile, FileFormat, isIntera
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -39,6 +41,9 @@ if (nargin < 3) || isempty(FileFormat)
 end
 if (nargin < 4) || isempty(isInteractive)
     isInteractive = 0;
+end
+if (nargin < 5) || isempty(isAutoAdjust)
+    isAutoAdjust = 1;
 end
 % Initialize returned variables
 BstMriFile = [];
@@ -66,22 +71,60 @@ if isempty(MriFile)
         DefaultFormats.MriIn = 'ALL';
     end
     % Get MRI file
-    [MriFile, FileFormat] = java_getfile( 'open', ...
+    [MriFile, FileFormat, FileFilter] = java_getfile( 'open', ...
         'Import MRI...', ...              % Window title
         LastUsedDirs.ImportAnat, ...      % Default directory
-        'single', 'files', ...            % Selection mode
+        'multiple', 'files_and_dirs', ... % Selection mode
         bst_get('FileFilters', 'mri'), ...
         DefaultFormats.MriIn);
     % If no file was selected: exit
     if isempty(MriFile)
         return
     end
+    % Expand file selection (if inputs are folders)
+    MriFile = file_expand_selection(FileFilter, MriFile);
+    if isempty(MriFile)
+        error(['No ' FileFormat ' file in the selected directories.']);
+    end
     % Save default import directory
-    LastUsedDirs.ImportAnat = bst_fileparts(MriFile);
+    LastUsedDirs.ImportAnat = bst_fileparts(MriFile{1});
     bst_set('LastUsedDirs', LastUsedDirs);
     % Save default import format
     DefaultFormats.MriIn = FileFormat;
     bst_set('DefaultFormats',  DefaultFormats);
+end
+
+
+%% ===== DICOM CONVERTER =====
+if strcmpi(FileFormat, 'DICOM-SPM')
+    % Convert DICOM to NII
+    DicomFiles = MriFile;
+    MriFile = in_mri_dicom_spm(DicomFiles, bst_get('BrainstormTmpDir'), isInteractive);
+    if isempty(MriFile)
+        return;
+    end
+    FileFormat = 'Nifti1';
+end
+
+
+%% ===== LOOP ON MULTIPLE MRI =====
+if iscell(MriFile) && (length(MriFile) == 1)
+    MriFile = MriFile{1};
+elseif iscell(MriFile)
+    % Only allow multiple import if there is already a MRI
+    if isempty(sSubject.Anatomy)
+        error(['You must import the first MRI in the subject folder separately.' 10 'Please select only one volume at a time.']);
+    end
+    % Initialize returned values
+    nFiles = length(MriFile);
+    BstMriFile = cell(1, nFiles);
+    sMri = cell(1, nFiles);
+    % Import all volumes without supervision
+    for i = 1:nFiles
+        [BstMriFile{i}, sMri{i}] = import_mri(iSubject, MriFile{i}, FileFormat, isInteractive, isAutoAdjust);
+    end
+    % All the files are imported: exit
+    return;
 end
     
     
@@ -98,15 +141,16 @@ sMri = bst_history('add', sMri, 'import', ['Import from: ' MriFile]);
 
 
 %% ===== MANAGE MULTIPLE MRI =====
+fileTag = '';
 % Add new anatomy
 iAnatomy = length(sSubject.Anatomy) + 1;
 % If add an extra MRI: read the first one to check that they are compatible
-if (iAnatomy > 1)
+if (iAnatomy > 1) && (isInteractive || isAutoAdjust)
     % Load the reference MRI (the first one)
     refMriFile = sSubject.Anatomy(1).FileName;
     sMriRef = in_mri_bst(refMriFile);
     % If some transformation where made to the intial volume: apply them to the new one ?
-    if isfield(sMriRef, 'InitTransf') && ~isempty(sMriRef.InitTransf)
+    if isfield(sMriRef, 'InitTransf') && ~isempty(sMriRef.InitTransf) && any(ismember(sMriRef.InitTransf(:,1), {'permute', 'flipdim'}))
         if ~isInteractive || java_dialog('confirm', ['A transformation was applied to the reference MRI.' 10 10 'Do you want to apply the same transformation to this new volume?' 10 10], 'Import MRI')
             % Apply step by step all the transformations that have been applied to the original MRI
             for it = 1:size(sMriRef.InitTransf,1)
@@ -120,83 +164,102 @@ if (iAnatomy > 1)
                         sMri.Cube = bst_flip(sMri.Cube, val(1));
                 end
             end
+            % Modifying the volume disables the option "Reslice"
+            isResliceDisabled = 1;
+        else
+            isResliceDisabled = 0;
         end
+    else
+        isResliceDisabled = 0;
     end
+    
+    % === ASK REGISTRATION METHOD ===
     % Get volumes dimensions
     refSize = size(sMriRef.Cube);
     newSize = size(sMri.Cube);
-    % Check the dimensions
-    if any(refSize ~= newSize) || any(sMriRef.Voxsize ~= sMriRef.Voxsize)
-        % Look for the possible permutations that would work
-        allPermute = [1 3 2; 2 1 3; 2 3 1; 3 1 2; 3 2 1];
-        iValid = [];
-        for ip = 1:length(allPermute)
-            if all(refSize == newSize(allPermute(ip,:))) && all(sMriRef.Voxsize ~= sMriRef.Voxsize(allPermute(ip,:)))
-                iValid(end+1) = ip;
-            end
-        end
-        % Error: could not find a matching combination of permutations
-        errMsg = ['The size or orientation of the new MRI does not match the previous one.' 10 10 ...
-                  'You can import multiple MRI volumes for a subject only if they all have exactly' 10 ...
-                  'the same dimensions, voxel size, and orientation.'];
-        if isempty(ip) || ~isInteractive
-            if isInteractive
-                bst_error(errMsg, 'Import MRI', 0);
-                sMri = [];
-                bst_progress('stop');
-                return;
-            else
-                disp(['Error: ' errMsg]);
-                sMri = [];
-                bst_progress('stop');
-                return;
-            end
-        % Warning: modifications have to be made
-        else
-            % Ask what operation to perform with this MRI
-            res = java_dialog('question', [errMsg 10 10 'You need to edit this volume before using it:' 10 ...
-                '- Resample: Change the size and resolution of the new MRI to match the previous one.' 10 ...
-                '- Register: Compute the MNI transformation for both volumes, then register the new one.' 10 ...
-                '- Ignore: Save the new MRI without modifications.'], ...
-                'Import MRI', [], {'Resample', 'Register', 'Ignore'}, 'Ignore');
-            % User aborted the import
-            if isempty(res)
-                sMri = [];
-                bst_progress('stop');
-                return;
-            end
-            % Remove the fiducials 
-            sMri
-            % Registration
-            switch (res)
-                case 'Register'
-                    % Register the new MRI on the existing one
-                    [sMri, errMsg] = mri_coregister(sMri, sMriRef);
-                case 'Resample'
-                    % Resample the new MRI using the properties of the old one
-                    [sMri, Transf, errMsg] = mri_resample(sMri, size(sMriRef.Cube), sMriRef.Voxsize);
-                case 'Ignore'
-                    % Nothing to do
-                    errMsg = [];
-            end
-            % Stop in case of error
-            if ~isempty(errMsg)
-                bst_error(errMsg, [res ' MRI'], 0);
-                sMri = [];
-                bst_progress('stop');
-                return;
-            end
-        end
-        isEdit = 1;
-    % No need to edit: Re-use the same fiducials
+    isSameSize = all(refSize == newSize) && all(sMriRef.Voxsize == sMriRef.Voxsize);
+    % Initialize list of options to register this new MRI with the existing one
+    strOptions = '<HTML>How to register the new volume with the reference image?<BR>';
+    cellOptions = {};
+    % Register with the SPM
+    strOptions = [strOptions, '<BR>- <U><B>SPM</B></U>:&nbsp;&nbsp;&nbsp;Coregister the two volumes with SPM (requires SPM toolbox).'];
+    cellOptions{end+1} = 'SPM';
+    % Register with the MNI transformation
+    strOptions = [strOptions, '<BR>- <U><B>MNI</B></U>:&nbsp;&nbsp;&nbsp;Compute the MNI transformation for both volumes (inaccurate).'];
+    cellOptions{end+1} = 'MNI';
+    % Skip registration
+    strOptions = [strOptions, '<BR>- <U><B>Ignore</B></U>:&nbsp;&nbsp;&nbsp;The two volumes are already registered.'];
+    cellOptions{end+1} = 'Ignore';
+    % Ask what operation to perform with this MRI
+    if isInteractive
+        RegMethod = java_dialog('question', [strOptions '<BR><BR></HTML>'], 'Import MRI', [], cellOptions, 'Reg+reslice');
+    % In non-interactive mode: ignore if possible, or use the first option available
     else
-        isEdit = 0;
-        % Copy the SCS and NCS fields
-        sMri.SCS = sMriRef.SCS;
-        sMri.NCS = sMriRef.NCS;
+        RegMethod = 'Ignore';
     end
-else
-    isEdit = 1;
+    % User aborted the import
+    if isempty(RegMethod)
+        sMri = [];
+        bst_progress('stop');
+        return;
+    end
+    
+    % === ASK RESLICE ===
+    if isInteractive && (~strcmpi(RegMethod, 'Ignore') || ...
+        (isfield(sMriRef, 'InitTransf') && ~isempty(sMriRef.InitTransf) && any(ismember(sMriRef.InitTransf(:,1), 'vox2ras')) && ...
+         isfield(sMri,    'InitTransf') && ~isempty(sMri.InitTransf)    && any(ismember(sMri.InitTransf(:,1),    'vox2ras')) && ...
+         ~isResliceDisabled))
+        % If the volumes don't have the same size, add a warning
+        if ~isSameSize
+            strSizeWarn = '<BR>The two volumes have different sizes: if you answer no here, <BR>you will not be able to overlay them in the same figure.';
+        else
+            strSizeWarn = [];
+        end
+        % Ask to reslice
+        isReslice = java_dialog('confirm', [...
+            '<HTML><B>Reslice the volume?</B><BR><BR>' ...
+            'This operation rewrites the new MRI to match the alignment, <BR>size and resolution of the original volume.' ...
+            strSizeWarn ...
+            '<BR><BR></HTML>'], 'Import MRI');
+    % In non-interactive mode: never reslice
+    else
+        isReslice = 0;
+    end
+    
+    % === REGISTRATION ===
+    switch (RegMethod)
+        case 'MNI'
+            % Register the new MRI on the existing one using the MNI transformation (+ RESLICE)
+            [sMri, errMsg, fileTag] = mri_coregister(sMri, sMriRef, 'mni', isReslice);
+        case 'SPM'
+            % Register the new MRI on the existing one using SPM + RESLICE
+            [sMri, errMsg, fileTag] = mri_coregister(sMri, sMriRef, 'spm', isReslice);
+        case 'Ignore'
+            if isReslice
+                % Register the new MRI on the existing one using the transformation in the input files (files already registered)
+                [sMri, errMsg, fileTag] = mri_reslice(sMri, sMriRef, 'vox2ras', 'vox2ras');
+            else
+                % Just copy the fiducials from the reference MRI
+                [sMri, errMsg, fileTag] = mri_coregister(sMri, sMriRef, 'vox2ras', isReslice);
+                % Transform error in warning
+                if ~isempty(errMsg) && ~isempty(sMri) && isSameSize && ~isReslice
+                    disp(['BST> Warning: ' errMsg]);
+                    errMsg = [];
+                end
+            end
+            % Copy the old SCS and NCS fields to the new file (only if registered)
+            if isSameSize || isReslice
+                sMri.SCS = sMriRef.SCS;
+                sMri.NCS = sMriRef.NCS;
+            end
+    end
+    % Stop in case of error
+    if ~isempty(errMsg)
+        bst_error(errMsg, [RegMethod ' MRI'], 0);
+        sMri = [];
+        bst_progress('stop');
+        return;
+    end
 end
 
 %% ===== SAVE MRI IN BRAINSTORM FORMAT =====
@@ -204,11 +267,10 @@ end
 if ~isfield(sMri, 'Comment')
     sMri.Comment = 'MRI';
 end
-% Add an index number 
-if (iAnatomy > 1)
-    %sMri.Comment = [sMri.Comment, sprintf(' #%d', iAnatomy)];
+% Use filename as comment
+if (iAnatomy > 1) || isInteractive || ~isAutoAdjust
     [fPath, fBase, fExt] = bst_fileparts(MriFile);
-    sMri.Comment = file_unique(fBase, {sSubject.Anatomy.Comment});
+    sMri.Comment = file_unique([fBase, fileTag], {sSubject.Anatomy.Comment});
 end
 % Get subject subdirectory
 subjectSubDir = bst_fileparts(sSubject.FileName);
@@ -217,7 +279,7 @@ subjectSubDir = bst_fileparts(sSubject.FileName);
 importedBaseName = strrep(importedBaseName, 'subjectimage_', '');
 importedBaseName = strrep(importedBaseName, '_subjectimage', '');
 % Produce a default anatomy filename
-BstMriFile = bst_fullfile(ProtocolInfo.SUBJECTS, subjectSubDir, ['subjectimage_' importedBaseName '.mat']);
+BstMriFile = bst_fullfile(ProtocolInfo.SUBJECTS, subjectSubDir, ['subjectimage_' importedBaseName fileTag '.mat']);
 % Make this filename unique
 BstMriFile = file_unique(BstMriFile);
 % Save new MRI in Brainstorm format
@@ -235,7 +297,7 @@ if isempty(sSubject.iAnatomy)
     sSubject.iAnatomy = iAnatomy;
 end
 
-% == Update database ==
+% === Update database ===
 % Default subject
 if (iSubject == 0)
 	ProtocolSubjects.DefaultSubject = sSubject;
@@ -244,6 +306,11 @@ else
     ProtocolSubjects.Subject(iSubject) = sSubject;
 end
 bst_set('ProtocolSubjects', ProtocolSubjects);
+
+% === Save first MRI as permanent default ===
+if (iAnatomy == 1)
+    db_surface_default(iSubject, 'Anatomy', iAnatomy, 0);
+end
 
 
 %% ===== UPDATE GUI =====
@@ -258,29 +325,37 @@ bst_memory('UnloadMri', BstMriFile);
 
 %% ===== MRI VIEWER =====
 if isInteractive
-    % Edit MRI
-    if isEdit
+    % First MRI: Edit fiducials
+    if (iAnatomy == 1)
         % MRI Visualization and selection of fiducials (in order to align surfaces/MRI)
         hFig = view_mri(BstMriFile, 'EditMri');
         drawnow;
         bst_progress('stop');
-        % Display help message: ask user to select fiducial points
-        if (iAnatomy == 1)
-            jHelp = bst_help('MriSetup.html', 0);
-        else
-            jHelp = [];
-        end
+%         % Display help message: ask user to select fiducial points
+%         if (iAnatomy == 1)
+%             jHelp = bst_help('MriSetup.html', 0);
+%         else
+%             jHelp = [];
+%         end
         % Wait for the MRI Viewer to be closed
         if ishandle(hFig)
             waitfor(hFig);
         end
-        % Close help window
-        if ~isempty(jHelp)
-            jHelp.close();
-        end
-    % Display MRI
+%         % Close help window
+%         if ~isempty(jHelp)
+%             jHelp.close();
+%         end
+    % Other volumes: Display registration
     else
-        hFig = view_mri(BstMriFile);
+        % If volumes are registered
+        if isSameSize || isReslice
+            % Open the second volume as an overlay of the first one
+            hFig = view_mri(refMriFile, BstMriFile);
+            % Set the amplitude threshold to 50%
+            panel_surface('SetDataThreshold', hFig, 1, 0.3);
+        else
+            hFig = view_mri(BstMriFile);
+        end
     end
 else
     bst_progress('stop');

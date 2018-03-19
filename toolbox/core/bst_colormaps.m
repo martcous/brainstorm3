@@ -54,7 +54,7 @@ function varargout = bst_colormaps( varargin )
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -603,11 +603,11 @@ function CreateColormapMenu(jMenu, ColormapType, DisplayUnits)
     end
     
     % Colormap list: Standard
-    cmapList = {'cmap_rbw', 'hot', 'cmap_hot2', 'bone', 'gray', 'pink', 'copper', 'cmap_nih_fire', 'cmap_nih', 'jet', 'cmap_jetinv', 'cmap_ns_green', 'cmap_ns_white', 'cmap_ns_grey', 'hsv', 'cmap_rainramp', 'cmap_spectrum', 'cmap_ge', 'cool', 'cmap_parula', 'cmap_cluster', 'cmap_atlas'};
-    iconList = [IconLoader.ICON_COLORMAP_RBW, IconLoader.ICON_COLORMAP_HOT, IconLoader.ICON_COLORMAP_HOT2, IconLoader.ICON_COLORMAP_BONE, IconLoader.ICON_COLORMAP_GREY, ...
+    cmapList = {'cmap_rbw', 'hot', 'cmap_hot2', 'cmap_gin', 'bone', 'gray', 'pink', 'copper', 'cmap_nih_fire', 'cmap_nih', 'jet', 'cmap_jetinv', 'cmap_ns_green', 'cmap_ns_white', 'cmap_ns_grey', 'hsv', 'cmap_rainramp', 'cmap_spectrum', 'cmap_ge', 'cmap_tpac', 'cool', 'cmap_parula', 'cmap_cluster', 'cmap_atlas'};
+    iconList = [IconLoader.ICON_COLORMAP_RBW, IconLoader.ICON_COLORMAP_HOT, IconLoader.ICON_COLORMAP_HOT2, IconLoader.ICON_COLORMAP_GIN, IconLoader.ICON_COLORMAP_BONE, IconLoader.ICON_COLORMAP_GREY, ...
                 IconLoader.ICON_COLORMAP_PINK, IconLoader.ICON_COLORMAP_COPPER, IconLoader.ICON_COLORMAP_NIHFIRE, IconLoader.ICON_COLORMAP_NIH, IconLoader.ICON_COLORMAP_JET, IconLoader.ICON_COLORMAP_JETINV, ...
                 IconLoader.ICON_COLORMAP_NEUROSPEED, IconLoader.ICON_COLORMAP_NEUROSPEED, IconLoader.ICON_COLORMAP_NEUROSPEED, ...
-                IconLoader.ICON_COLORMAP_HSV, IconLoader.ICON_COLORMAP_RAINRAMP, IconLoader.ICON_COLORMAP_SPECTRUM, IconLoader.ICON_COLORMAP_GE, ...
+                IconLoader.ICON_COLORMAP_HSV, IconLoader.ICON_COLORMAP_RAINRAMP, IconLoader.ICON_COLORMAP_SPECTRUM, IconLoader.ICON_COLORMAP_GE,  IconLoader.ICON_COLORMAP_TPAC, ...
                 IconLoader.ICON_COLORMAP_COOL, IconLoader.ICON_COLORMAP_PARULA, IconLoader.ICON_COLORMAP_CLUSTER, IconLoader.ICON_COLORMAP_ATLAS];
     for i = 1:length(cmapList)
         % If the colormap #i is currently used for this surface : check the menu
@@ -1335,43 +1335,52 @@ function ConfigureColorbar(hFig, ColormapType, DataType, DisplayUnits) %#ok<DEFN
         end
         
         % === DEFINE TICKS ===
-        % Try to find an easy to read scale for this data
-        possibleTickSpaces = reshape([1; 2; 5] * [0.0001 0.001 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000], 1, []);
-        possibleNbTicks = (dataBounds(2) - dataBounds(1)) .* fFactor ./ possibleTickSpaces ;
-        iTicks = find((possibleNbTicks >= 3) & (possibleNbTicks <= 500));
-        % If at least one scale is found
-        if ~isempty(iTicks)
-            % Take the one with the smallest number of ticks
-            tickSpace = possibleTickSpaces(iTicks(end));
-            YTick = unique([bst_flip(0:-tickSpace/fFactor:dataBounds(1), 2), 0, 0:tickSpace/fFactor:dataBounds(2)]);
-            YTickLabel = fFactor * YTick;
-            % Normalized YTicks
-            YLim = get(hColorbar, 'YLim');
-            YTickNorm = (YTick-dataBounds(1)) / (dataBounds(2)-dataBounds(1)) * (YLim(2)-YLim(1)) + YLim(1);
-            
-            % If displaying integer values (%d)
-            if (round(tickSpace) == tickSpace)
-                YTickLabel = num2str(round(YTickLabel)', '%d');
-            % Else : display fractional values
-            else
-                nbDecimal = 1;
-                while (tickSpace < power(10, -nbDecimal))
-                    nbDecimal = nbDecimal + 1;
-                end
-                YTickLabel = num2str(YTickLabel', sprintf('%%0.%df', nbDecimal));
-            end
-        % If no scale can be manually set
-        else
-            % Cannot find a valid number of ticks : do not display ticks
-            YTickNorm  = 0;
-            YTickLabel = [];
-            fUnits     = 'Invalid scale';
+        YLim = get(hColorbar, 'YLim');
+        % Guess the most reasonable ticks spacing
+        [YTickNorm, YTickLabel] = GetTicks(dataBounds, YLim, fFactor);
+        % Invalid scale
+        if isempty(YTickLabel)
+            fUnits = 'Invalid scale';
         end
         % Update ticks of the colorbar
         set(hColorbar, 'YTick',      YTickNorm, ...
                        'YTickLabel', YTickLabel);
         xlabel(hColorbar, fUnits);
     end    
+end
+
+
+%% ====== GET TICKS ======
+% Guess the most reasonable ticks spacing
+function [TickNorm, TickLabel] = GetTicks(dataBounds, axesLim, fFactor)
+    % Try to find an easy to read scale for this data
+    possibleTickSpaces = reshape([1; 2; 5] * [0.0001 0.001 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000], 1, []);
+    possibleNbTicks = (dataBounds(2) - dataBounds(1)) .* fFactor ./ possibleTickSpaces ;
+    iTicks = find((possibleNbTicks >= 3) & (possibleNbTicks <= 500));
+    % If at least one scale is found
+    if ~isempty(iTicks)
+        % Take the one with the smallest number of ticks
+        tickSpace = possibleTickSpaces(iTicks(end));
+        Tick = unique([bst_flip(0:-tickSpace/fFactor:dataBounds(1), 2), 0, 0:tickSpace/fFactor:dataBounds(2)]);
+        TickLabel = fFactor * Tick;
+        % Normalized Ticks
+        TickNorm = (Tick-dataBounds(1)) / (dataBounds(2)-dataBounds(1)) * (axesLim(2)-axesLim(1)) + axesLim(1);
+        % If displaying integer values (%d)
+        if (round(tickSpace) == tickSpace)
+            TickLabel = num2str(round(TickLabel)', '%d');
+        % Else : display fractional values
+        else
+            nbDecimal = 1;
+            while (tickSpace < power(10, -nbDecimal))
+                nbDecimal = nbDecimal + 1;
+            end
+            TickLabel = num2str(TickLabel', sprintf('%%0.%df', nbDecimal));
+        end
+    % Cannot find a valid number of ticks : do not display ticks
+    else
+        TickNorm  = 0;
+        TickLabel = [];
+    end
 end
 
 

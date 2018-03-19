@@ -7,7 +7,7 @@ function varargout = panel_ssp_selection(varargin)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -137,6 +137,16 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         % Double-click
         if (ev.getClickCount() == 2)
             ButtonRename_Callback();
+        % Right-click: Popup menu
+        elseif (ev.getButton() == ev.BUTTON3)
+            % Create popup menu
+            jPopup = java_create('javax.swing.JPopupMenu');
+            % Menu "Remove from list"
+            gui_component('MenuItem', jPopup, [], 'Select all',   [], [], @(h,ev)SelectAllComponents(1));
+            gui_component('MenuItem', jPopup, [], 'Deselect all', [], [], @(h,ev)SelectAllComponents(0));
+            % Show popup menu
+            jPopup.pack();
+            jPopup.show(jListCat, ev.getPoint.getX(), ev.getPoint.getY());
         % Single click
         else
             % Toggle checkbox status
@@ -199,35 +209,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         end
     end
 
-    %% ===== TOGGLE CHECKBOX ======
-    function [i, newStatus] = ToggleCheck(ev)
-        i = [];
-        newStatus = [];
-        % Ignore all the clicks if the JList is disabled
-        if ~ev.getSource().isEnabled()
-            return
-        end
-        % Only consider that it was selected if it was clicked next to the left of the component
-        if (ev.getPoint().getX() > 17)
-            return;
-        end
-        % Get selected element
-        jList = ev.getSource();
-        i    = jList.locationToIndex(ev.getPoint());
-        item = jList.getModel().getElementAt(i);
-        status = item.getUserData();
-        % Process click (0:Not selected, 1:Selected, 2:Forced selected)
-        switch(status)
-            case 0,  newStatus = 1;
-            case 1,  newStatus = 0;
-            case 2,  newStatus = 2;
-        end
-        item.setUserData(int32(newStatus));
-        jList.repaint(jList.getCellBounds(i, i));
-        % Convert index to 1-based
-        i = i + 1;
-    end
-
     %% ===== LIST: KEY TYPED CALLBACK =====
     function ListCatKey_Callback(h, ev)
         switch(uint8(ev.getKeyChar()))
@@ -241,6 +222,36 @@ end
 %% =================================================================================
 %  === INTERFACE CALLBACKS =========================================================
 %  =================================================================================
+%%  ===== TOGGLE CHECKBOX ======
+function [i, newStatus] = ToggleCheck(ev)
+    i = [];
+    newStatus = [];
+    % Ignore all the clicks if the JList is disabled
+    if ~ev.getSource().isEnabled()
+        return
+    end
+    % Only consider that it was selected if it was clicked next to the left of the component
+    if (ev.getPoint().getX() > 17)
+        return;
+    end
+    % Get selected element
+    jList = ev.getSource();
+    i    = jList.locationToIndex(ev.getPoint());
+    item = jList.getModel().getElementAt(i);
+    status = item.getUserData();
+    % Process click (0:Not selected, 1:Selected, 2:Forced selected)
+    switch(status)
+        case 0,  newStatus = 1;
+        case 1,  newStatus = 0;
+        case 2,  newStatus = 2;
+    end
+    item.setUserData(int32(newStatus));
+    jList.repaint(jList.getCellBounds(i, i));
+    % Convert index to 1-based
+    i = i + 1;
+end
+
+
 %% ===== CLOSING CALLBACK =====
 function PanelHidingCallback(varargin) %#ok<DEFNU>
     global EditSspPanel;
@@ -801,3 +812,24 @@ function SaveFigureAsSsp(hFig, UseDirectly) %#ok<DEFNU>
         export_ssp(sProj, {GlobalData.DataSet(iDS).Channel.Name}, []);
     end
 end
+
+
+%% ===== SELECT ALL CATEGORIES =====
+function SelectAllComponents(Status)
+    global EditSspPanel;
+    % Nothing to do if there are no projectors
+    if isempty(EditSspPanel.Projector)
+        return;
+    end
+    % Change the status of all the components
+    iNonStatic = ([EditSspPanel.Projector.Status] < 2);
+    [EditSspPanel.Projector(iNonStatic).Status] = deal(Status);
+    % Update panel
+    UpdateCat();
+    UpdateComp();
+    % Update display of recordings
+    UpdateRaw();
+end
+
+
+

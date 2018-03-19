@@ -20,7 +20,7 @@ function [hFig, iDS, iFig] = view_timeseries(DataFile, Modality, RowNames, hFig)
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -156,10 +156,12 @@ end
 %% ===== CONFIGURE FIGURE =====
 % Static dataset ?
 setappdata(hFig, 'isStatic', (GlobalData.DataSet(iDS).Measures.NumberOfSamples <= 2));
-% Statistics?
-isStat = strcmpi(GlobalData.DataSet(iDS).Measures.DataType, 'stat');
 % Raw file
 isRaw = strcmpi(GlobalData.DataSet(iDS).Measures.DataType, 'raw');
+% Statistics?
+% isStat = strcmpi(GlobalData.DataSet(iDS).Measures.DataType, 'stat');
+isStat = ~ismember(GlobalData.DataSet(iDS).Measures.DataType, {'recordings', 'raw'});
+
 % Create time-series information structure
 if isNewFig
     % Create figure structure
@@ -190,7 +192,11 @@ setappdata(hFig, 'TsInfo', TsInfo);
 % Get default montage
 if isNewFig
     sMontage = panel_montage('GetCurrentMontage', Modality);
-    if ~isempty(sMontage) && isempty(RowNames) && (~isStat || strcmpi(sMontage.Type, 'selection')) && ~ismember(sMontage.Name, {'ICA components[tmp]', 'SSP components[tmp]'})
+    % If displaying a SEEG for which a bipolar montage has already been applied: ignore current montage
+    if ~isempty(sMontage) && isempty(RowNames) && strcmpi(Modality, 'SEEG') && all(cellfun(@(c)any(c=='-'), {GlobalData.DataSet(iDS).Channel.Name}))
+        TsInfo.MontageName = [];
+    % Use previous montage
+    elseif ~isempty(sMontage) && isempty(RowNames) && (~isStat || strcmpi(sMontage.Type, 'selection')) && ~ismember(sMontage.Name, {'ICA components[tmp]', 'SSP components[tmp]'})
         TsInfo.MontageName = sMontage.Name;
     else
         TsInfo.MontageName = [];

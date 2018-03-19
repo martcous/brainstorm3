@@ -1,12 +1,11 @@
 function isOk = bst_ft_init(isInteractive)
-% PROCESS_FT_CHANNELREPAIR: Call FieldTrip function ft_channelrepair.
-% Replace bad channels with interpolations of neighboring values.
+% BST_FT_INIT: Check FieldTrip installation and call ft_defaults.
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -20,7 +19,7 @@ function isOk = bst_ft_init(isInteractive)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2015-2016
+% Authors: Francois Tadel, 2015-2017
 
 % Deployed: does not work
 if exist('isdeployed', 'builtin') && isdeployed
@@ -38,12 +37,7 @@ FieldTripDir = bst_get('FieldTripDir');
 if ~isempty(FieldTripDir) && ~isInteractive
     disp(['BST> FieldTrip install: ' FieldTripDir]);
 end
-% Check if FieldTrip is already initialized
-global ft_default;
-if ~isempty(ft_default) && exist('ft_defaults', 'file')
-    isOk = 1;
-    return;
-end
+
 isOk = 0;
 % If FieldTrip is not accessible in the path
 if ~exist('ft_defaults', 'file')
@@ -56,7 +50,7 @@ if ~exist('ft_defaults', 'file')
         if ~java_dialog('confirm', [...
             'This process require the FieldTrip toolbox to be installed on your computer.', 10, ...
             'Download the toolbox at: http://www.fieldtriptoolbox.org/download' 10 10 ...
-            'Is FieldTrip already installed on your computer?']);
+            'Is FieldTrip already installed on your computer?'])
             bst_error('FieldTrip was not set up properly.', 'FieldTrip setup', 0);
             return;
         end
@@ -88,11 +82,23 @@ if ~exist('ft_defaults', 'file')
         disp(['BST> New FieldTrip folder: ' FieldTripDir]);
     % Just return an error
     else
-        error('Please download FieldTrip and add it to your matlab path.');
+        error(['Please download FieldTrip: http://www.fieldtriptoolbox.org/download' 10 ...
+               'Then add the installation path in Brainstorm (File > Edit preferences).']);
     end
 end
-ft_defaults;
+
+% Check if FieldTrip is already initialized
+global ft_default;
+if isempty(ft_default)
+    ft_defaults;
+end
 isOk = 1;
 
+% Add some subfolders
+addpath(fullfile(FieldTripDir, 'specest'));
+addpath(fullfile(FieldTripDir, 'preproc'));
+addpath(fullfile(FieldTripDir, 'forward'));
+addpath(fullfile(FieldTripDir, 'src'));
+addpath(fullfile(FieldTripDir, 'utilities'));
 
     

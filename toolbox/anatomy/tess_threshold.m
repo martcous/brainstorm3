@@ -12,7 +12,7 @@ function [Faces, iFacesRemove] = tess_threshold(Vertices, Faces, threshArea, thr
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
 % 
-% Copyright (c)2000-2017 University of Southern California & McGill University
+% Copyright (c)2000-2018 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
@@ -74,7 +74,7 @@ end
 if ~isempty(threshAngle) && (threshAngle > 0)
     % Compute the angle between all the vectors
     maxAngle = zeros(size(Vertices,1),1);
-    for i = 1:length(v1)
+    for i = 1:size(v1,1)
         maxAngle(i) = max([atan2(norm(cross(v1(i,:),v2(i,:))), dot(v1(i,:),v2(i,:))), ...
                         atan2(norm(cross(v1(i,:),v3(i,:))), dot(v1(i,:),v3(i,:))), ...
                         atan2(norm(cross(v2(i,:),v3(i,:))), dot(v2(i,:),v3(i,:)))]);
