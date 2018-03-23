@@ -2029,7 +2029,7 @@ function [bstPanel, panelName] = CreatePanel(sFiles, sFiles2, FileTimeVector)
         EventList = {};
         
         if excludeSpikes || onlySpikes
-            prefix = process_spikesorting_unsupervised('GetSpikesEventPrefix');
+            prefix = process_spikesorting_supervised('GetSpikesEventPrefix');
             prefixSize = length(prefix);
         end
         
