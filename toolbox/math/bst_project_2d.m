@@ -40,11 +40,12 @@ switch (Method)
 
     case '2dlayout'
         
-        %%%%%%%%%%%%%%%%% MARTIN %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         displayFlat = 1; % This should be the input from the user, if they want the original projection or the flat one
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         if displayFlat
         
+            %% DISPLAY THE ARRAYS FLAT ON THE CORTEX
+            % KONSTANTINOS NASIOTIS 2018
+            
             %% Get to which Montage each channel belongs to
             global GlobalData
             Channels = GlobalData.DataSet.Channel; % 1x224
@@ -62,16 +63,23 @@ switch (Method)
                 end
             end
 
-            %APPLY PCA
+            % APPLY TRANSORMATION TO A FLAT SURFACE (X-Y COORDINATES: IGNORE Z)
             converted_coordinates = zeros(length(Channels),3);
             for iMontage = 1:length(Montages)
                 clear single_array_coords
                 single_array_coords = channelsCoords(channelsMontage==iMontage,:);
-                [coeff,score,latent,tsquared,explained] = pca(single_array_coords);
-                converted_coordinates(channelsMontage==iMontage,:) = score*coeff'+mean(single_array_coords,1);
+                
+                % PCA approach
+%                 [coeff,score,latent,tsquared,explained] = pca(single_array_coords - mean(single_array_coords));
+%                 converted_coordinates(channelsMontage==iMontage,:) = score*coeff' + mean(single_array_coords);
+                
+                % SVD approach
+                [U, S, V] = svd(single_array_coords-mean(single_array_coords));
+                lower_rank = 2;% Get only the first two components
+                converted_coordinates(channelsMontage==iMontage,:)=U(:,1:lower_rank)*S(1:lower_rank,1:lower_rank)*V(:,1:lower_rank)'+mean(single_array_coords);
             end
 
-            X = converted_coordinates(:,1);
+            X = converted_coordinates(:,1); 
             Y = converted_coordinates(:,2);
             
         else
