@@ -39,14 +39,54 @@ switch (Method)
         [X,Y] = pol2cart(TH,R);
 
     case '2dlayout'
-        % Spheric coordinates
-        z = z - max(z);
-        [TH,PHI,R] = cart2sph(x, y, z);
-        % Remove the too smal values for PHI
-        PHI(PHI < 0.001) = 0.001;
-        % Flat projection
-        R2 = R ./ cos(PHI) .^ .2;
-        [X,Y] = pol2cart(TH,R2);
+        
+        %%%%%%%%%%%%%%%%% MARTIN %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        displayFlat = 1; % This should be the input from the user, if they want the original projection or the flat one
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        if displayFlat
+        
+            %% Get to which Montage each channel belongs to
+            global GlobalData
+            Channels = GlobalData.DataSet.Channel; % 1x224
+
+            channelsMontage = zeros(length(Channels),1); % This holds the code of the montage each channel holds 
+            channelsCoords  = zeros(length(Channels),3); % THE 3D COORDINATES
+            Montages = unique({Channels.Group});
+
+            for iChannel = 1:length(Channels)
+                for iMontage = 1:length(Montages)
+                    if strcmp(Channels(iChannel).Group, Montages{iMontage})
+                        channelsMontage(iChannel)    = iMontage;
+                        channelsCoords(iChannel,1:3) = Channels(iChannel).Loc;
+                    end
+                end
+            end
+
+            %APPLY PCA
+            converted_coordinates = zeros(length(Channels),3);
+            for iMontage = 1:length(Montages)
+                clear single_array_coords
+                single_array_coords = channelsCoords(channelsMontage==iMontage,:);
+                [coeff,score,latent,tsquared,explained] = pca(single_array_coords);
+                converted_coordinates(channelsMontage==iMontage,:) = score*coeff'+mean(single_array_coords,1);
+            end
+
+            X = converted_coordinates(:,1);
+            Y = converted_coordinates(:,2);
+            
+        else
+            % Spheric coordinates
+            z = z - max(z);
+            [TH,PHI,R] = cart2sph(x, y, z);
+            % Remove the too smal values for PHI
+            PHI(PHI < 0.001) = 0.001;
+            % Flat projection
+            R2 = exp(R ./ cos(PHI) .^ .2);
+            [X,Y] = pol2cart(TH,R2);
+        end
+        
+        
+        
 
     case 'circle'
         %     figure; 
