@@ -46,14 +46,14 @@ switch (Method)
             %% DISPLAY THE ARRAYS FLAT ON THE CORTEX
             % KONSTANTINOS NASIOTIS 2018
             
-            %% Get to which Montage each channel belongs to
+            %% Get the Montage each channel belongs to
             global GlobalData
             Channels = GlobalData.DataSet.Channel; % 1x224
 
             channelsMontage = zeros(length(Channels),1); % This holds the code of the montage each channel holds 
             channelsCoords  = zeros(length(Channels),3); % THE 3D COORDINATES
             Montages = unique({Channels.Group});
-
+            
             for iChannel = 1:length(Channels)
                 for iMontage = 1:length(Montages)
                     if strcmp(Channels(iChannel).Group, Montages{iMontage})
@@ -63,12 +63,12 @@ switch (Method)
                 end
             end
 
+            
             % APPLY TRANSORMATION TO A FLAT SURFACE (X-Y COORDINATES: IGNORE Z)
             converted_coordinates = zeros(length(Channels),3);
             for iMontage = 1:length(Montages)
                 clear single_array_coords
                 single_array_coords = channelsCoords(channelsMontage==iMontage,:);
-                
                 % PCA approach
 %                 [coeff,score,latent,tsquared,explained] = pca(single_array_coords - mean(single_array_coords));
 %                 converted_coordinates(channelsMontage==iMontage,:) = score*coeff' + mean(single_array_coords);
@@ -76,7 +76,10 @@ switch (Method)
                 % SVD approach
                 [U, S, V] = svd(single_array_coords-mean(single_array_coords));
                 lower_rank = 2;% Get only the first two components
-                converted_coordinates(channelsMontage==iMontage,:)=U(:,1:lower_rank)*S(1:lower_rank,1:lower_rank)*V(:,1:lower_rank)'+mean(single_array_coords);
+                
+                factor_to_bring_arrays_closer = 5; % This is used since the relative distance of the arrays compared to their size is much larger
+                
+                converted_coordinates(channelsMontage==iMontage,:)=U(:,1:lower_rank)*S(1:lower_rank,1:lower_rank)*V(:,1:lower_rank)'+mean(single_array_coords)/factor_to_bring_arrays_closer;
             end
 
             X = converted_coordinates(:,1); 
