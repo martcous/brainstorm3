@@ -100,14 +100,18 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         % Initialize the output file. Its size will be nNeurons x nEvents selected
         final_matrix = zeros(length(sProcess.options.spikesel.Value),length(sProcess.options.eventsel.Value));
         
+        nStimulusEventsOccurences = zeros(length(sProcess.options.spikesel.Value),1); % This will be used for normalizing the tuning curves - if selected
+        
         % Compute the spikes in the bin around the Events selected
         for iNeuron = 1:length(sProcess.options.spikesel.Value)
             index_NeuronEvents = find(ismember(allEventLabels, sProcess.options.spikesel.Value{iNeuron})); % Find the index of the spike-events that correspond to that electrode (Exact string match)
             times_NeuronEvents = events(index_NeuronEvents).times;
-            
+                        
             for iEvent = 1:length(sProcess.options.eventsel.Value)
                 index_StimulusEvents = find(ismember(allEventLabels, sProcess.options.eventsel.Value{iEvent})); % Find the index of the spike-events that correspond to that electrode (Exact string match)
                 times_StimulusEvents = events(index_StimulusEvents).times;
+                
+                nStimulusEventsOccurences(iNeuron) = length(times_StimulusEvents);
                 
                 for iSampleEvent = 1:length(times_StimulusEvents)
                     condition_success = sum((times_NeuronEvents>times_StimulusEvents(iSampleEvent) - sProcess.options.timewindow.Value{1}(1)) & (times_NeuronEvents < times_StimulusEvents(iSampleEvent) + sProcess.options.timewindow.Value{1}(2)));
@@ -117,34 +121,50 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                 end
             end
             
-            
             % Create the plot, and overlap a Shape-Preserving Interpolant fit on it
             %TODO: brainstorm figure?
-            figure(iNeuron);
+            figure((iFile-1)*100+iNeuron); % Each Link to Raw file figure set will be separated by an index of 100.
 
             x = 1:length(sProcess.options.eventsel.Value);
             % Y will be the y points that will be plotted
             if sProcess.options.normalize.Value
-                y = final_matrix(iNeuron,:)./max(final_matrix(iNeuron,:));
+                y = final_matrix(iNeuron,:)./nStimulusEventsOccurences(iNeuron,:);
                 set(gcf, 'Name', ['Normalized : ' sProcess.options.spikesel.Value{iNeuron}]);
             else
                 y = final_matrix(iNeuron,:);
                 set(gcf, 'Name', sProcess.options.spikesel.Value{iNeuron});
             end
 
-            % Fit the Shape-Preserving Interpolant
-            f = fit(x.',y.','pchip');
-            plot(f,x,y);
-            set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
-            xlabel('Condition');
-            ylabel('Number of Spikes');
-            legend('Spikes', 'Fitted Curve');
-            if max(y) == 0
-                axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
-            else
-                axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
+            % Plot a fit on the tuning curves if fitting toolbox is present
+            try
+                % Fit the Shape-Preserving Interpolant
+                f = fit(x.',y.','pchip');
+                plot(f,x,y);
+                set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
+                xlabel('Condition');
+                ylabel('Number of Spikes');
+                legend('Spikes', 'Fitted Curve');
+                if max(y) == 0
+                    axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
+                else
+                    axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
+                end
+            % If no fitting toolbox is present, just connect the points
+            catch
+                plot(x,y);
+                set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
+                xlabel('Condition');
+                ylabel('Number of Spikes');
+                if max(y) == 0
+                    axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
+                else
+                    axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
+                end
             end
+               
         end
+        
+        
     end
     
 end
