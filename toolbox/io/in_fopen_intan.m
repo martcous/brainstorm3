@@ -180,7 +180,18 @@ if ~isempty(EventFiles)
         
     events_vector = bi2de(parallel_input,'right-msb'); % Collapse the 9 parallel ports to a vector that shows the events
     
-    [event_labels, event_samples] = findpeaks(events_vector);
+%     [event_labels, event_samples] = findpeaks(events_vector); Needs statistics toolbox
+    
+    
+    event_samples = find(diff(events_vector)>0); % This detects only the rise, not the fall of the Parallel port signal
+                                                       % The signal is
+                                                       % assumed to return
+                                                       % to baseline after
+                                                       % the trigger. Make
+                                                       % sure this is the
+                                                       % case
+    
+    event_labels = events_vector(event_samples);
     
     % Create events list
     if ~isempty(event_labels)
