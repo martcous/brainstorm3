@@ -319,4 +319,3 @@ function SaveBrainstormEvents(sFile, outputFile, eventNamePrefix)
 
     save(bst_fullfile(sFile.Parent, outputFile),'events');
 end
-

@@ -123,7 +123,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             
             % Create the plot, and overlap a Shape-Preserving Interpolant fit on it
             %TODO: brainstorm figure?
-            figure((iFile-1)*100+iNeuron); % Each Link to Raw file figure set will be separated by an index of 100.
+            figure((iFile-1)*100 + iNeuron); % Each Link to Raw file figure set will be separated by an index of 100.
 
             x = 1:length(sProcess.options.eventsel.Value);
             % Y will be the y points that will be plotted
@@ -140,33 +140,25 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                 % Fit the Shape-Preserving Interpolant
                 f = fit(x.',y.','pchip');
                 plot(f,x,y);
-                set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
-                xlabel('Condition');
-                ylabel('Number of Spikes');
                 legend('Spikes', 'Fitted Curve');
-                if max(y) == 0
-                    axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
-                else
-                    axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
-                end
-            % If no fitting toolbox is present, just connect the points
             catch
+                % If no fitting toolbox is present, just connect the points
                 plot(x,y);
-                set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
-                xlabel('Condition');
-                ylabel('Number of Spikes');
-                if max(y) == 0
-                    axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
-                else
-                    axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
-                end
+            end
+            
+            set(gca, 'Xtick', 1:length(sProcess.options.eventsel.Value), 'Xticklabel', sProcess.options.eventsel.Value);
+            xlabel('Condition');
+            ylabel('Number of Spikes');
+                
+            if max(y) == 0
+                axis([0 length(sProcess.options.eventsel.Value)+1 0 Inf]);
+            else
+                axis([0 length(sProcess.options.eventsel.Value)+1 0 max(y) + std(y)]);
             end
                
         end
         
-        
     end
     
 end
-
 

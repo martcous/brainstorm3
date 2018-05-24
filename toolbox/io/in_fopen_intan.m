@@ -74,7 +74,7 @@ hdr.chan_files = {};
 newHeader = read_Intan_RHD2000_file(DataFile);
 
 % Check for the magic Number
-if newHeader.magic_number ~= 3.331401474000000e+09
+if newHeader.magic_number ~= hex2dec('c6912702')
     error('Magic Number Incorrect. The Intan header was not loaded properly');
 end
 
@@ -110,21 +110,8 @@ hdr.NumSamples            = num_samples_time;
 hdr.SamplingFrequency     = newHeader.sample_rate;
 
 % Save all file names
-hdr.chan_headers  = newHeader;
-
-
-
-
-
-
-hdr.chan_files    = ampFiles;  % I ONLY LOAD THE AMP FILES HERE. THE AUXILIARY FILES HAVE DIFFERENT SAMPLING FREQUENCY. FIX THIS ON A LATER VERSION
-
-
-
-
-
-
-
+hdr.chan_headers = newHeader;
+hdr.chan_files   = ampFiles;  % I ONLY LOAD THE AMP FILES HERE. THE AUXILIARY FILES HAVE DIFFERENT SAMPLING FREQUENCY. FIX THIS ON A LATER VERSION
 hdr.ChannelCount = length(hdr.chan_files);
 
 
@@ -135,7 +122,7 @@ sFile = db_template('sfile');
 sFile.byteorder = 'l';
 sFile.filename  = hdr.BaseFolder;
 sFile.format    = 'EEG-INTAN';
-sFile.device = 'Intan';
+sFile.device    = 'Intan';
 sFile.header    = hdr;
 sFile.comment   = Comment;
 % Consider that the sampling rate of the file is the sampling rate of the first signal
@@ -180,18 +167,8 @@ if ~isempty(EventFiles)
         
     events_vector = bi2de(parallel_input,'right-msb'); % Collapse the 9 parallel ports to a vector that shows the events
     
-%     [event_labels, event_samples] = findpeaks(events_vector); Needs statistics toolbox
-    
-    
-    event_samples = find(diff(events_vector)>0); % This detects only the rise, not the fall of the Parallel port signal
-                                                       % The signal is
-                                                       % assumed to return
-                                                       % to baseline after
-                                                       % the trigger. Make
-                                                       % sure this is the
-                                                       % case
-    
-    event_labels = events_vector(event_samples);
+    %TODO: change to a toolbox-free function
+    [event_labels, event_samples] = findpeaks(events_vector);
     
     % Create events list
     if ~isempty(event_labels)

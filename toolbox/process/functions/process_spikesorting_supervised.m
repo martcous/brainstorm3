@@ -308,7 +308,7 @@ function nextElectrode = GetNextElectrode()
     else
         nextElectrode = GlobalData.SpikeSorting.Selected;
     end
-    if nextElectrode > numSpikes || isempty(GlobalData.SpikeSorting.Data.Spikes(nextElectrode).File)
+    if nextElectrode >= numSpikes || isempty(GlobalData.SpikeSorting.Data.Spikes(nextElectrode).File)
         nextElectrode = GlobalData.SpikeSorting.Selected;
     end
 end

@@ -1,7 +1,5 @@
-function F = in_fread_intan(sFile, SamplesBounds, iChannels)
-% IN_FREAD_INTAN Read a block of recordings from a Intan files
-%
-% USAGE:  F = in_fread_intan(sFile, SamplesBounds=[], iChannels=[])
+function str = str_remove_spec_chars( str )
+% STR_REMOVE_SPEC_CHARS: Remove special characters from string or array of strings.
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
@@ -21,27 +19,15 @@ function F = in_fread_intan(sFile, SamplesBounds, iChannels)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Konstantinos Nasiotis 2018
+% Authors: Francois Tadel, 2018; Martin Cousineau, 2018
 
-
-% Parse inputs
-if (nargin < 3) || isempty(iChannels)
-    iChannels = 1:sFile.header.ChannelCount;
-end
-if (nargin < 2) || isempty(SamplesBounds)
-    SamplesBounds = sFile.prop.samples;
+notCell = ~iscell(str);
+if notCell
+    str = {str};
 end
 
-nChannels = length(iChannels);
-nSamples = SamplesBounds(2) - SamplesBounds(1) + 1;
+str = cellfun(@(c)c(~ismember(c, ' .,?!-_@#$%^&*+*=()[]{}|/')), str, 'UniformOutput', 0);
 
-% Read the corresponding recordings
-F = zeros(nChannels, nSamples);
-
-for iChannel = 1:nChannels
-    fid = fopen(fullfile(sFile.filename, sFile.header.chan_files(iChannel).name), 'r');
-    fseek(fid, SamplesBounds(1), 'bof');
-    data_channel = fread(fid, nSamples, 'int16');
-    F(iChannel,:) = data_channel * 0.195; % Convert to microvolts
-    fclose(fid);
+if notCell
+    str = str{1};
 end
