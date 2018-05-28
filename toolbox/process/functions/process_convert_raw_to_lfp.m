@@ -177,7 +177,7 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
 
         %% Get the transformed channelnames that were used on the signal data naming. This is used in the derive lfp function in order to find the spike events label
         % New channelNames - Without any special characters.
-        cleanChannelNames = str_remove_spec_chars(ChannelMat.Channel.Name);
+        cleanChannelNames = str_remove_spec_chars({ChannelMat.Channel.Name});
 
         %% Update fields before initializing the header on the binary file
         sFileTemplate.prop.samples = floor(sFileTemplate.prop.times * NewFreq);  % Check if FLOOR IS NEEDED HERE
