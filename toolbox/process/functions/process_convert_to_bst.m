@@ -1,6 +1,8 @@
 function varargout = process_convert_to_bst( varargin )
 % process_convert_to_bst_Nas: Convert the raw signals to .bst files with a
 % user defined sampling rate. It needs to be a subsample of the original Fs
+% or even the original Fs.
+
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % http://neuroimage.usc.edu/brainstorm
