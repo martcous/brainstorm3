@@ -107,7 +107,7 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
         sMat = in_bst(sInput.FileName, [], 0);
         Fs = 1 / diff(sMat.Time(1:2)); % This is the original sampling rate
 
-        if mod(Fs,NewFreq) ~= 0
+        if mod(Fs,NewFreq) ~= 0 && mod(Fs,NewFreq)>10^(-5)
             % This would create a problematic downsampling
             error(['The downsampling will not be accurate. Make sure the new sampling rate is a submultiple of the original sampling rate. This process downsamples from ' num2str(Fs) ' to ' num2str(NewFreq) ' Hz'])
         end
