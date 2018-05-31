@@ -55,7 +55,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.sampling.Type    = 'value';
     sProcess.options.sampling.Value   = {10000, 'Hz', 1}; % This is used in case the electrodes are not separated yet (no spike sorting done), or the temp folder was emptied 
     
-    sProcess.options.samplingHelp.Comment = '<I><FONT color="#777777">The new Fs should be a submultiple of the original Fs</FONT></I>';
+    sProcess.options.samplingHelp.Comment = '<I><FONT color="#777777">The new Fs should be the same or a submultiple of the original Fs</FONT></I>';
     sProcess.options.samplingHelp.Type    = 'label';
 end
 
