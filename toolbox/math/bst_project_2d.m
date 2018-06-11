@@ -65,21 +65,29 @@ switch (Method)
 
             
             % APPLY TRANSORMATION TO A FLAT SURFACE (X-Y COORDINATES: IGNORE Z)
+            factor_to_bring_arrays_closer = 5; % This is used since the relative distance of the arrays compared to their size is much larger
+
+            
             converted_coordinates = zeros(length(Channels),3);
             for iMontage = 1:length(Montages)
                 clear single_array_coords
                 single_array_coords = channelsCoords(channelsMontage==iMontage,:);
-                % PCA approach
-%                 [coeff,score,latent,tsquared,explained] = pca(single_array_coords - mean(single_array_coords));
-%                 converted_coordinates(channelsMontage==iMontage,:) = score*coeff' + mean(single_array_coords);
                 
-                % SVD approach
-                [U, S, V] = svd(single_array_coords-mean(single_array_coords));
-                lower_rank = 2;% Get only the first two components
+                if size(single_array_coords,1) ~= 1
                 
-                factor_to_bring_arrays_closer = 5; % This is used since the relative distance of the arrays compared to their size is much larger
+                    % PCA approach
+    %                 [coeff,score,latent,tsquared,explained] = pca(single_array_coords - mean(single_array_coords));
+    %                 converted_coordinates(channelsMontage==iMontage,:) = score*coeff' + mean(single_array_coords);
+
+                    % SVD approach
+                    [U, S, V] = svd(single_array_coords-mean(single_array_coords));
+                    lower_rank = 2;% Get only the first two components
+                    converted_coordinates(channelsMontage==iMontage,:)=U(:,1:lower_rank)*S(1:lower_rank,1:lower_rank)*V(:,1:lower_rank)'+mean(single_array_coords)/factor_to_bring_arrays_closer;
                 
-                converted_coordinates(channelsMontage==iMontage,:)=U(:,1:lower_rank)*S(1:lower_rank,1:lower_rank)*V(:,1:lower_rank)'+mean(single_array_coords)/factor_to_bring_arrays_closer;
+                else
+                    converted_coordinates(channelsMontage==iMontage,:) = single_array_coords / factor_to_bring_arrays_closer;
+ 
+                end
             end
 
             X = converted_coordinates(:,1); 
