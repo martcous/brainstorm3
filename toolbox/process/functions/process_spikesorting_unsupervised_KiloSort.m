@@ -338,20 +338,45 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
               'Neronexus/ Omnetics site','Intan pin','Intan Channel','','','X Coordinates','Y Coordinates','','','Neuronexus/ Omnetics Site','Intan Pin','Intan Channel'};
 %               'Neronexus/ Omnetics site',[DataMat.F.device ' pin'],[DataMat.F.device ' Channel'],'','','X Coordinates','Y Coordinates','','','Neuronexus/ Omnetics Site',[DataMat.F.device ' Pin'],[DataMat.F.device ' Channel']};
         
-        for iChannel = 1:length(kcoords) % 1x224
-            A3{iChannel,1}  = iChannel;
-            A3{iChannel,2}  = iChannel-1; % Acquisition system codename - INTAN STARTS CHANNEL NUMBERING FROM 0. These .xlsx are made for INTAN I assume
-            A3{iChannel,3}  = iChannel-1;
-            A3{iChannel,4}  = ['SHANK ' num2str(kcoords(iChannel))];
-            A3{iChannel,5}  = '';
-            A3{iChannel,6}  = xcoords(iChannel); % x coord - THIS PROBABLY SHOULD BE RELATIVE TO EACH ARRAY - NOT GLOBAL COORDINATES
-            A3{iChannel,7}  = ycoords(iChannel);
-            A3{iChannel,8}  = '';
-            A3{iChannel,9}  = ['SHANK ' num2str(kcoords(iChannel))];
-            A3{iChannel,10} = iChannel; % This is for the display - Neuronexus/Omnetics Site
-            A3{iChannel,11} = iChannel-1; % This is for the display - Intan Pin
-            A3{iChannel,12} = iChannel-1; % This is for the display - Intan Channel
+        nChannelsInMontage = cell(length(unique(kcoords)),1);
+        for iType = unique(kcoords)'
+            nChannelsInMontage{iType} = find(kcoords==iType);
         end
+
+        ii = 0;
+        for iType = unique(kcoords)'
+            for iChannel = nChannelsInMontage{iType}' % 1x96
+                ii = ii+1;
+                A3{ii,1}  = iChannel;
+                A3{ii,2}  = iChannel-1; % Acquisition system codename - INTAN STARTS CHANNEL NUMBERING FROM 0. These .xlsx are made for INTAN I assume
+                A3{ii,3}  = iChannel-1;
+                A3{ii,4}  = ['SHANK ' num2str(iType)];
+                A3{ii,5}  = '';
+                A3{ii,6}  = xcoords(iChannel); % x coord - THIS PROBABLY SHOULD BE RELATIVE TO EACH ARRAY - NOT GLOBAL COORDINATES
+                A3{ii,7}  = ycoords(iChannel);
+                A3{ii,8}  = '';
+                A3{ii,9}  = ['SHANK ' num2str(iType)];
+                A3{ii,10} = iChannel; % This is for the display - Neuronexus/Omnetics Site
+                A3{ii,11} = iChannel-1; % This is for the display - Intan Pin
+                A3{ii,12} = iChannel-1; % This is for the display - Intan Channel
+            end
+        end
+
+
+%         for iChannel = 1:length(kcoords) % 1x224
+%             A3{iChannel,1}  = iChannel;
+%             A3{iChannel,2}  = iChannel-1; % Acquisition system codename - INTAN STARTS CHANNEL NUMBERING FROM 0. These .xlsx are made for INTAN I assume
+%             A3{iChannel,3}  = iChannel-1;
+%             A3{iChannel,4}  = ['SHANK ' num2str(kcoords(iChannel))];
+%             A3{iChannel,5}  = '';
+%             A3{iChannel,6}  = xcoords(iChannel); % x coord - THIS PROBABLY SHOULD BE RELATIVE TO EACH ARRAY - NOT GLOBAL COORDINATES
+%             A3{iChannel,7}  = ycoords(iChannel);
+%             A3{iChannel,8}  = '';
+%             A3{iChannel,9}  = ['SHANK ' num2str(kcoords(iChannel))];
+%             A3{iChannel,10} = iChannel; % This is for the display - Neuronexus/Omnetics Site
+%             A3{iChannel,11} = iChannel-1; % This is for the display - Intan Pin
+%             A3{iChannel,12} = iChannel-1; % This is for the display - Intan Channel
+%         end
         
         sheet = 1;
         xlswrite(xml_filename,A1,sheet,'A1')
