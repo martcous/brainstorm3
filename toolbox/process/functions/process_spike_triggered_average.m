@@ -122,13 +122,16 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     sampling_rate = round(abs(1. / (tfOPTIONS.TimeVector(2) - tfOPTIONS.TimeVector(1))));
     
     %TODO: clarify and use sensortypes?
-    nElectrodes = 0;
+    selectedChannels = [];
+    nChannels = 0;
     for iChannel = 1:length(ChannelMat.Channel)
-       if strcmp(ChannelMat.Channel(iChannel).Type, 'EEG') || strcmp(ChannelMat.Channel(iChannel).Type, 'SEEG') % Maybe we can add this option to be available on the raw file as well???
-          nElectrodes = nElectrodes + 1;               
+       if strcmp(ChannelMat.Channel(iChannel).Type, 'EEG') || strcmp(ChannelMat.Channel(iChannel).Type, 'SEEG')
+          nChannels = nChannels + 1;
+          selectedChannels(end + 1) = iChannel;
        end
     end
-
+    
+    
     nTrials = length(sInputs);
     time_segmentAroundSpikes = linspace(sProcess.options.timewindow.Value{1}(1), sProcess.options.timewindow.Value{1}(2), abs(sProcess.options.timewindow.Value{1}(2))* sampling_rate + abs(sProcess.options.timewindow.Value{1}(1))* sampling_rate + 1);    
 
@@ -142,7 +145,10 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             end
         catch
             sProcess.options.paral.Value = 0;
+            poolobj = [];
         end
+    else
+        poolobj = [];
     end
     
     
@@ -162,12 +168,12 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % Optimize this
     if ~isempty(poolobj) 
         parfor iFile = 1:nTrials
-            [LFPs_single_trial] = get_LFPs(ALL_TRIALS_files(iFile).trial, nElectrodes, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat);
+            [LFPs_single_trial] = get_LFPs(ALL_TRIALS_files(iFile).trial, nChannels, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat);
             everything(iFile).LFPs_single_trial = LFPs_single_trial;
         end 
     else
         for iFile = 1:nTrials
-            [LFPs_single_trial] = get_LFPs(ALL_TRIALS_files(iFile).trial, nElectrodes, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat);
+            [LFPs_single_trial] = get_LFPs(ALL_TRIALS_files(iFile).trial, nChannels, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat);
             everything(iFile).LFPs_single_trial = LFPs_single_trial;
         end 
     end
@@ -224,33 +230,19 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             end
         end
         
-        STA_single_neuron = zeros(nElectrodes, length(time_segmentAroundSpikes));                  % 192 x 301
+        STA_single_neuron = zeros(length(ChannelMat.Channel), length(time_segmentAroundSpikes));                  % 192 x 301
 
         %% Take the Averages of the appropriate indices
+        divideBy = 0;
         for iTrial = 1:size(all_labels,2)
-
-        
-            divideBy = 0;
             if iEvents(iTrial)~=0
                 STA_single_neuron = STA_single_neuron + everything(iTrial).LFPs_single_trial(iEvents(iTrial)).nSpikes * everything(iTrial).LFPs_single_trial(iEvents(iTrial)).avgLFP; % The avgLFP are sum actually. 
                 divideBy = divideBy + everything(iTrial).LFPs_single_trial(iEvents(iTrial)).nSpikes;
             end 
         end
         
-%         STA(iNeuron,:,:) = (STA_single_neuron./divideBy)'; % 
         STA_single_neuron = (STA_single_neuron./divideBy)';
     
-%     
-%     
-%     %% Plot an example for proof of concept
-%     iNeuron = 100;
-%     figure(1);
-%     imagesc(squeeze(SFC(iNeuron,:,:))')        % SFC: Number of neurons x Frequencies x Electrodes : 161x151x192
-%     ylabel 'iElectrode'
-%     xlabel 'Frequency (Hz)'
-%     title ({'Spike Field Coherence';['Neuron ' num2str(iNeuron)]})
-%     
-%     
 
         %% Get meaningful label from neuron name
         better_label = process_spikesorting_supervised('GetChannelOfSpikeEvent', labelsForDropDownMenu{iNeuron});
@@ -317,7 +309,7 @@ end
 
 
 
-function all = get_LFPs(trial, nElectrodes, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat)
+function all = get_LFPs(trial, nChannels, sProcess, time_segmentAroundSpikes, sampling_rate, ChannelMat)
     %% Get the events that show NEURONS' activity
 
     % Important Variable here!
@@ -327,7 +319,7 @@ function all = get_LFPs(trial, nElectrodes, sProcess, time_segmentAroundSpikes, 
     allChannelEvents = cellfun(@(x) process_spikesorting_supervised('GetChannelOfSpikeEvent', x), ...
         {trial.Events.label}, 'UniformOutput', 0);
     
-    for ielectrode = 1:nElectrodes
+    for ielectrode = 1: nChannels %selectedChannels
         iEvents = find(strcmp(allChannelEvents, ChannelMat.Channel(ielectrode).Name)); % Find the index of the spike-events that correspond to that electrode (Exact string match)
         if ~isempty(iEvents)
             spikeEvents(end+1:end+length(iEvents)) = iEvents;
@@ -345,7 +337,7 @@ function all = get_LFPs(trial, nElectrodes, sProcess, time_segmentAroundSpikes, 
 
         %% Create a matrix that holds all the segments around the spike
         % of that neuron, for all electrodes.
-        allSpikeSegments_singleNeuron_singleTrial = zeros(length(events_within_segment),size(trial.F,1),abs(sProcess.options.timewindow.Value{1}(2))* sampling_rate + abs(sProcess.options.timewindow.Value{1}(1))* sampling_rate + 1);
+        allSpikeSegments_singleNeuron_singleTrial = zeros(length(events_within_segment),length(ChannelMat.Channel),abs(sProcess.options.timewindow.Value{1}(2))* sampling_rate + abs(sProcess.options.timewindow.Value{1}(1))* sampling_rate + 1);
 
         for ispike = 1:length(events_within_segment)
             allSpikeSegments_singleNeuron_singleTrial(ispike,:,:) = trial.F(:, round(length(trial.Time) / 2) + events_within_segment(ispike) - abs(sProcess.options.timewindow.Value{1}(1)) * sampling_rate: ...
@@ -360,5 +352,13 @@ function all = get_LFPs(trial, nElectrodes, sProcess, time_segmentAroundSpikes, 
 
 
     end
-        
+    
+    %% Check if any events had no spikes in the time-region of interest and remove them!
+    %  Some spikes might be on the edges of the trial. Ultimately, the
+    %  Spikes Channel i events would be considered in the STA (I mean the event group, not the events themselves), 
+    %  but there would be a zeroed avgLFP included. Get rid of those events
+    iEventsToRemove = find([all.nSpikes]==0);
+    
+    all = all(~ismember(1:length(all),iEventsToRemove));
+    
 end

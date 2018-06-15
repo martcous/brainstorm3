@@ -48,7 +48,19 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.despikeLFP.Comment = 'Despike LFP <I><FONT color="#777777"> Highly Recommended if analysis uses SFC or STA</FONT></I>';
     sProcess.options.despikeLFP.Type    = 'checkbox';
     sProcess.options.despikeLFP.Value   = 1;
-  
+    
+    sProcess.options.filterbounds.Comment = 'LFP filtering limits';
+    sProcess.options.filterbounds.Type    = 'range';
+    sProcess.options.filterbounds.Value   = {[0.5, 150],'Hz',1};
+    
+    % Definition of the options
+    % === Freq list
+    sProcess.options.freqlist.Comment = 'Notch filter Frequencies (Hz):';
+    sProcess.options.freqlist.Type    = 'value';
+    sProcess.options.freqlist.Value   = {[], 'list', 2};
+    sProcess.options.freqlistHelp.Comment = '<I><FONT color="#777777">Frequencies for notch filter (leave empty for no selection)</FONT></I>';
+    sProcess.options.freqlistHelp.Type    = 'label';
+    
     sProcess.options.paral.Comment     = 'Parallel processing';
     sProcess.options.paral.Type        = 'checkbox';
     sProcess.options.paral.Value       = 1;
@@ -76,7 +88,8 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
     for iInput = 1:length(sInputs)
         sInput = sInputs(iInput);
         %% Parameters
-        filterBounds = [0.5, 300];   % Filtering bounds for the LFP
+        filterBounds = sProcess.options.filterbounds.Value{1}; % Filtering bounds for the LFP
+        notchFilterFreqs = sProcess.options.freqlist.Value{1}; % Notch Filter frequencies for the LFP
         % Output frequency
         NewFreq = 1000;
 
@@ -134,8 +147,6 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
             poolobj = [];
         end
 
-
-
         %% Initialize
 
         % Prepare output file
@@ -177,7 +188,7 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
 
         %% Get the transformed channelnames that were used on the signal data naming. This is used in the derive lfp function in order to find the spike events label
         % New channelNames - Without any special characters.
-        cleanChannelNames = str_remove_spec_chars(ChannelMat.Channel.Name);
+        cleanChannelNames = str_remove_spec_chars({ChannelMat.Channel.Name});
 
         %% Update fields before initializing the header on the binary file
         sFileTemplate.prop.samples = floor(sFileTemplate.prop.times * NewFreq);  % Check if FLOOR IS NEEDED HERE
@@ -210,22 +221,22 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
         if sProcess.options.despikeLFP.Value
             if sProcess.options.paral.Value
                 parfor iChannel = 1:nChannels
-                    LFP(iChannel,:) = BayesianSpikeRemoval(sFiles_temp_mat{iChannel}, filterBounds, sMat.F, ChannelMat, cleanChannelNames);
+                    LFP(iChannel,:) = BayesianSpikeRemoval(sFiles_temp_mat{iChannel}, filterBounds, sMat.F, ChannelMat, cleanChannelNames, notchFilterFreqs);
                 end
             else
                 for iChannel = 1:nChannels
-                    LFP(iChannel,:) = BayesianSpikeRemoval(sFiles_temp_mat{iChannel}, filterBounds, sMat.F, ChannelMat, cleanChannelNames);
+                    LFP(iChannel,:) = BayesianSpikeRemoval(sFiles_temp_mat{iChannel}, filterBounds, sMat.F, ChannelMat, cleanChannelNames, notchFilterFreqs);
                     bst_progress('inc', 1);
                 end
             end
         else
             if sProcess.options.paral.Value
                 parfor iChannel = 1:nChannels
-                    LFP(iChannel,:) = filter_and_downsample(sFiles_temp_mat{iChannel}, Fs, filterBounds);
+                    LFP(iChannel,:) = filter_and_downsample(sFiles_temp_mat{iChannel}, Fs, filterBounds, notchFilterFreqs);
                 end
             else
                 for iChannel = 1:nChannels
-                    LFP(iChannel,:) = filter_and_downsample(sFiles_temp_mat{iChannel}, Fs, filterBounds);
+                    LFP(iChannel,:) = filter_and_downsample(sFiles_temp_mat{iChannel}, Fs, filterBounds, notchFilterFreqs);
                     bst_progress('inc', 1);
                 end
             end
@@ -240,46 +251,34 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
 end
 
 
-function data = filter_and_downsample(inputFilename, Fs, filterBounds)
+function data = filter_and_downsample(inputFilename, Fs, filterBounds, notchFilterFreqs)
     sMat = load(inputFilename); % Make sure that a variable named data is loaded here. This file is saved as an output from the separator 
-    data = bst_bandpass_hfilter(sMat.data', Fs, filterBounds(1), filterBounds(2), 0, 0);
-    data = downsample(data', round(Fs/1000))';  % The file now has a different sampling rate (fs/30) = 1000Hz.
+    
+    % Apply notch filter
+    data = process_notch('Compute', sMat.data, sMat.sr, notchFilterFreqs);
+    
+    % Aplly final filter
+    data = bst_bandpass_hfilter(data, Fs, filterBounds(1), filterBounds(2), 0, 0);
+    data = downsample(data, round(Fs/1000));  % The file now has a different sampling rate (fs/30) = 1000Hz.
 end
 
 
 %% BAYESIAN DESPIKING
-function data_derived = BayesianSpikeRemoval(inputFilename, filterBounds, sFile, ChannelMat, cleanChannelNames)
+function data_derived = BayesianSpikeRemoval(inputFilename, filterBounds, sFile, ChannelMat, cleanChannelNames, notchFilterFreqs)
 
     sMat = load(inputFilename); % Make sure that a variable named data is loaded here. This file is saved as an output from the separator 
     
     %% Instead of just filtering and then downsampling, DeriveLFP is used, as in:
     % https://www.ncbi.nlm.nih.gov/pubmed/21068271
     
-    % Remove line noise peaks at 60, 180Hz
-    data_deligned = delineSignal(sMat.data, sMat.sr, [60,180]); % This function plots a figure!!!
+    data_deligned = process_notch('Compute', sMat.data, sMat.sr, notchFilterFreqs)';
     
-    g = fitLFPpowerSpectrum(data_deligned,filterBounds(1),filterBounds(2),sFile.prop.sfreq);
-%     load('C:/Users/McGill/Desktop/g.mat') % this loads a variable g
-    
-% % % % % % % % % % % % % % % % % % %     %Find a good value for g according to the method shown in the appendix,
-% % % % % % % % % % % % % % % % % % %     %fitting to a function with a modest number of free parameters
-% % % % % % % % % % % % % % % % % % %     %Usually this takes some fiddling with the parameters
-% % % % % % % % % % % % % % % % % % %     g = fitLFPpowerSpectrum(data_deligned,.01,250,sFile.prop.sfreq);
-    
-
-    % Assume that a spike lasts 2.5ms
-    % We'd like to assume that a spike lasts
-    % from -25 samples to +50 samples (2.5 ms) compared to its peak % 
-    % for 30000 Hz sampling rate
-    % Since spktimes are the time of the peak of each spike, we subtract 15
-    % from spktimes to obtain the start times of the spikes
-    nSegment = sMat.sr * 0.0025;
+    % Assume that a spike lasts 3ms
+    nSegment = sMat.sr * 0.003;
     Bs = eye(nSegment); % 60x60
-    opts.displaylevel = 0;
+    opts.displaylevel = 0; % 0 gets rid of all the outputs
+                           % 2 shows the optimization steps
 
-    S = zeros(length(data_deligned),1);
-    
-    
     %% Get the channel Index of the file that is imported
     [tmp, ChannelName] = fileparts(inputFilename);
     ChannelName = strrep(ChannelName, 'raw_elec_', '');
@@ -304,20 +303,53 @@ function data_derived = BayesianSpikeRemoval(inputFilename, filterBounds, sFile,
     % If there are no neurons picked up from that electrode, continue
     % Apply despiking around the spiking times
     if ~isempty(iEventforElectrode) % If there are spikes on that electrode
-        spktimes = sFile.events(iEventforElectrode).samples;
-        S(spktimes - round(nSegment/3)) = 1; % This assumes the spike starts at 1/3 before the trough of the spike
+        spkSamples = [sFile.events(iEventforElectrode).samples]; % All spikes, from all neurons on that electrode
+        
+        % We'd like to assume that a spike lasts
+        % from-10 samples to +19 samples (3 ms) for 10000 Hz sampling rate compared to its peak
+        % Since spktimes are the time of the peak of each spike, we subtract 15
+        % from spktimes to obtain the start times of the spikes
+%         S(spktimes - round(nSegment/3)) = 1; % This assumes the spike starts at 1/2 before the trough of the spike
+  
+        if mod(length(data_deligned),2)~=0
+            
+            data_deligned_temp = [data_deligned;0];
+            g = fitLFPpowerSpectrum(data_deligned_temp,filterBounds(1),filterBounds(2),sFile.prop.sfreq);
+            S = zeros(length(data_deligned_temp),1);
+            S(spkSamples - round(nSegment/2)) = 1; % This assumes the spike starts at 1/2 before the trough of the spike    
+            data_derived = despikeLFP(data_deligned_temp,S,Bs,g,opts);
+            data_derived = data_derived.z';
+   %         data_derived = bst_bandpass_hfilter(data_derived.z', Fs, filterBounds(1), filterBounds(2), 0, 0);
 
-        data_derived = despikeLFP(data_deligned,S,Bs,g,opts);
-        data_derived = data_derived.z';
+            
+        else
+            g = fitLFPpowerSpectrum(data_deligned,filterBounds(1),filterBounds(2),sFile.prop.sfreq);
+            S = zeros(length(data_deligned),1);
+            S(spkSamples - round(nSegment/2)) = 1; % This assumes the spike starts at 1/2 before the trough of the spike
+
+            data_derived = despikeLFP(data_deligned,S,Bs,g,opts);
+            data_derived = data_derived.z';
+   %         data_derived = bst_bandpass_hfilter(data_derived.z', Fs, filterBounds(1), filterBounds(2), 0, 0);
+
+            
+        end
     else
+%         data_derived = bst_bandpass_hfilter(data_deligned', Fs, filterBounds(1), filterBounds(2), 0, 0);
         data_derived = data_deligned';
     end
+    
+% % % %     %% Check the difference
+% % % %     figure(1);
+% % % %     plot(data_deligned)
+% % % %     hold on
+% % % %     plot(data_derived)
+% % % %     plot(spkSamples,zeros(length(spkSamples),1),'*');
+% % % %     legend('Deligned Data','Bayesian Spike Removal','Spike Timestamps')
+    
     
     data_derived = downsample(data_derived, sMat.sr/1000);  % The file now has a different sampling rate (fs/30) = 1000Hz
     
 end
-
-
 
 
 

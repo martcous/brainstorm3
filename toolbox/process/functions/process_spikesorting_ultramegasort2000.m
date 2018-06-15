@@ -70,6 +70,11 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.edit.Comment = {'panel_spikesorting_options', '<U><B>Parameters</B></U>: '};
     sProcess.options.edit.Type    = 'editpref';
     sProcess.options.edit.Value   = [];
+    
+    % Show warning that pre-spikesorted events will be overwritten
+    sProcess.options.warning.Comment = '<B><FONT color="#FF0000">Spike Events created from the acquisition system will be overwritten</FONT></B>';
+    sProcess.options.warning.Type    = 'label';
+   
 end
 
 
@@ -159,12 +164,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         
         %% UltraMegaSort2000 needs manual filtering of the raw files
         
-        % The -200 and +2000 should be substituted by a relaxed or a strict
-        % filtering option
-        Wp = [ sProcess.options.highpass.Value{1}      sProcess.options.lowpass.Value{1}       ] * 1 / sFile.prop.sfreq; % pass band for filtering
-        Ws = [ sProcess.options.highpass.Value{1}-200  sProcess.options.lowpass.Value{1} + 2000] * 1 / sFile.prop.sfreq; % transition zone
-        [N,Wn] = buttord(Wp, Ws, 3, 20); % determine filter parameters
-        [B,A] = butter(N,Wn); % builds filter
+        Fs = sFile.prop.sfreq;
         
         % The Get_spikes saves the _spikes files at the current directory.
         previous_directory = pwd;
@@ -172,11 +172,11 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 
         if sProcess.options.paral.Value  
             parfor ielectrode = 1:numChannels
-                do_UltraMegaSorting(A,B,sFiles{ielectrode},ielectrode,sFile);
+                do_UltraMegaSorting(sFiles{ielectrode}, sFile, sProcess.options.lowpass, sProcess.options.highpass, Fs);
             end
         else
             for ielectrode = 1:numChannels
-                do_UltraMegaSorting(A,B,sFiles{ielectrode},ielectrode,sFile);
+                do_UltraMegaSorting(sFiles{ielectrode}, sFile, sProcess.options.lowpass, sProcess.options.highpass, Fs);
                 bst_progress('inc', 1);
             end
         end
@@ -330,13 +330,15 @@ function SaveBrainstormEvents(sFile, outputFile, eventNamePrefix)
     save(bst_fullfile(sFile.Parent, outputFile),'events');
 end
 
-function do_UltraMegaSorting(A, B, electrodeFile, ielectrode, sFile)
+function do_UltraMegaSorting(electrodeFile, sFile, lowPass, highPass, Fs)
     try
+        % Apply BST bandpass filter
         DataMat = load(electrodeFile, 'data');
-        filtered_data_temp = filtfilt(B, A, DataMat.data); % runs filter
+        filtered_data_temp = bst_bandpass_hfilter(DataMat.data', Fs, highPass.Value{1}(1), lowPass.Value{1}(1), 0, 0);
+        
         filtered_data = cell(1,1);
-        filtered_data{1} = filtered_data_temp; %should be a column vector clear filter
-
+        filtered_data{1} = filtered_data_temp'; %should be a column vector clear filter
+        
         spikes = ss_default_params(sFile.prop.sfreq);
         spikes = ss_detect(filtered_data,spikes);
         spikes = ss_align(spikes);
@@ -346,9 +348,12 @@ function do_UltraMegaSorting(A, B, electrodeFile, ielectrode, sFile)
 
         [path, filename] = fileparts(electrodeFile);
         save(['times_' filename '.mat'], 'spikes')
-    catch
+    catch e
         % If an error occurs, just don't create the spike file.
-        disp(['Warning: Spiking failed on electrode ' num2str(ielectrode) '. Skipping this electrode.']);
+        [path, filename] = fileparts(electrodeFile);
+        clean_label = strrep(filename,'raw_elec_','');
+        disp(e);
+        disp(['Warning: Spiking failed on electrode ' clean_label '. Skipping this electrode.']);
     end
     
 end
