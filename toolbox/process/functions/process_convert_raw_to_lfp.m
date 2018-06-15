@@ -79,8 +79,7 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
         filterBounds = [0.5, 300];   % Filtering bounds for the LFP
         % Output frequency
         NewFreq = 1000;
-
-
+        
         % Get method name
         if (nargin < 3)
             method = [];
@@ -150,6 +149,19 @@ function OutputFiles = Run(sProcess, sInputs, method) %#ok<DEFNU>
             % system that doesn't record in multiples of 1kHz.
             warning(['The downsampling might not be accurate. This process downsamples from ' num2str(Fs) ' to ' num2str(NewFreq) ' Hz'])
         end
+        
+        %% TODO: Check what value for minimum sampling rate has to be inserted here
+        
+        
+        if Fs < 1100 && sProcess.options.despikeLFP.Value
+            warning('Check what value for minimum sampling rate has to be inserted here')
+            error('The sampling rate of the RAW signal is too low to use the Bayesian spike removal')
+        end
+        
+        
+        
+        %%
+        
 
         % Get new condition name
         newStudyPath = file_unique(bst_fullfile(ProtocolInfo.STUDIES, sInput.SubjectName, newCondition));
