@@ -142,7 +142,10 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             end
         catch
             sProcess.options.paral.Value = 0;
+            poolobj = [];
         end
+    else
+        poolobj = [];
     end
     
     
@@ -360,5 +363,14 @@ function all = get_LFPs(trial, nElectrodes, sProcess, time_segmentAroundSpikes, 
 
 
     end
-        
+    
+    
+    %% Check if any events had no spikes in the time-region of interest and remove them!
+    %  Some spikes might be on the edges of the trial. Ultimately, the
+    %  Spikes Channel i events would be considered in the STA (I mean the event group, not the events themselves), 
+    %  but there would be a zeroed avgLFP included. Get rid of those events
+    iEventsToRemove = find([all.nSpikes]==0);
+    
+    all = all(~ismember(1:length(all),iEventsToRemove));
+    
 end
