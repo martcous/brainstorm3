@@ -142,8 +142,8 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
 %     ops.NchanTOT            = 32;           % total number of channels (omit if already in chanMap file)
 %     ops.Nchan               = 32;           % number of active channels (omit if already in chanMap file)
     ops.Nfilt               = 64;           % number of clusters to use (2-4 times more than Nchan, should be a multiple of 32)     		
-    ops.nNeighPC            = 12; % visualization only (Phy): number of channnels to mask the PCs, leave empty to skip (12)		
-    ops.nNeigh              = 16; % visualization only (Phy): number of neighboring templates to retain projections of (16)		
+    ops.nNeighPC            = 4; % visualization only (Phy): number of channnels to mask the PCs, leave empty to skip (12)		
+    ops.nNeigh              = 4; % visualization only (Phy): number of neighboring templates to retain projections of (16)		
 
     % options for channel whitening		
     ops.whitening           = 'full'; % type of whitening (default 'full', for 'noSpikes' set options for spike detection below)		
@@ -548,11 +548,13 @@ function convertKilosort2BrainstormEvents(sFile, ChannelMat, parentPath, rez)
     
     
     
-    
+    %% %% %%
+    DO A FOR LOOP PER NEURON HERE, NOT PER CHANNEL
+    %% %% %%
     
     for iElectrode = 1:length(ChannelMat.Channel)
-        if ChannelMat.Channel(iElectrode) == 'EEG'
-            nNeurons = size(spikes.labels,1); % This gives the number of neurons that are picked up on that electrode
+        if strcmp(ChannelMat.Channel(iElectrode).Type,'EEG') || strcmp(ChannelMat.Channel(iElectrode).Type,'SEEG')
+            nNeurons = size(spike2ChannelAssignment,1); 
             if nNeurons==1
                 index = index+1;
                 % Write the packet to events
