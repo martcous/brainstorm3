@@ -596,8 +596,8 @@ function convertKilosort2BrainstormEvents(sFile, ChannelMat, parentPath, rez)
         index = index+1;
         % Write the packet to events
         
-        if uniqueClusters(iCluster)==1
-            events(index).label       = 'Spikes Noise |1|';
+        if uniqueClusters(iCluster)==1 || uniqueClusters(iCluster)==0
+            events(index).label       = ['Spikes Noise |' num2str(uniqueClusters(iCluster)) '|'];
         else
             events(index).label       = ['Spikes Channel ' ChannelMat.Channel(amplitude_max_channel(uniqueClusters(iCluster))).Name ' |' num2str(uniqueClusters(iCluster)) '|'];
         end

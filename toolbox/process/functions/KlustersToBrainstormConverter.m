@@ -10,10 +10,10 @@
 % 3: .res
 % 4: .spk
 
-folder = 'D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted_converted\ytu288c-01_converted_converted_kilosort_spikes';
-study = 'ytu288c-01_converted_converted';
-ChannelMat = load('D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted_converted\channel.mat');
-DataMat = in_bst_data('D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted_converted\data_0raw_ytu288c-01_converted_converted.mat', 'F');
+folder = 'D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted\ytu288c-01_converted_kilosort_spikes';
+study = 'ytu288c-01_converted';
+ChannelMat = load('D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted\channel.mat');
+DataMat = in_bst_data('D:\brainstorm_db\Tutorial_e-Phys\data\Floyd\@rawytu288c-01_converted\data_0raw_ytu288c-01_converted.mat', 'F');
 sFile = DataMat.F; clear DataMat
 
 
@@ -106,8 +106,8 @@ for iCluster = 1:length(uniqueClusters)
     
     index = index+1;
     % Write the packet to events
-    if uniqueClusters(iCluster)==1
-        events(index).label       = 'Spikes Noise |1|';
+    if uniqueClusters(iCluster)==1 || uniqueClusters(iCluster)==0
+        events(index).label       = ['Spikes Noise |' num2str(uniqueClusters(iCluster)) '|'];
     else
         events(index).label       = ['Spikes Channel ' ChannelMat.Channel(iElectrode).Name ' |' num2str(uniqueClusters(iCluster)) '|'];
     end    
