@@ -72,7 +72,7 @@ function sProcess = GetDescription() %#ok<DEFNU>
     sProcess.options.edit.Value   = [];
     
     % Show warning that pre-spikesorted events will be overwritten
-    sProcess.options.warning.Comment = '<B><FONT color="#FF0000">Spike Events created from the acquisition system will be overwritten</FONT></B>';
+    sProcess.options.warning.Comment = '<B><FONT color="#FF0000">All acquisition system Spike Events will be deleted</FONT></B>';
     sProcess.options.warning.Type    = 'label';
    
 end
