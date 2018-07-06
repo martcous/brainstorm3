@@ -507,7 +507,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         % Build output structure
         DataMat = struct();
         %DataMat.F          = sFile;
-        DataMat.Comment     = 'Spike Sorting Kilosort';
+        DataMat.Comment     = 'Kilosort Spike Sorting';
         DataMat.DataType    = 'raw';%'ephys';
         DataMat.Device      = 'KiloSort';
         DataMat.Spikes      = outputPath;
@@ -666,10 +666,13 @@ function downloadAndInstallKiloSort()
     % 2. Phy
     % 3. npy-matlab that enables input-output from Matlab to Python
     
-
-    KiloSortDir = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort');
-    KiloSortTmpDir = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort_tmp');
+    mainKilosortDir       = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort');
+    KiloSortDir           = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort/Kilosort');
+    KiloSortTmpDir        = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort_tmp');
+    KiloSortWrapperDir    = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort/KiloSortWrapper');
     KiloSortWrapperTmpDir = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSortWrapper_tmp');
+    phyDir                = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort/phy');
+    npyDir                = bst_fullfile(bst_get('BrainstormUserDir'), 'KiloSort/npy');
     
     % If folders exists: delete
     if isdir(KiloSortDir)
@@ -681,7 +684,7 @@ function downloadAndInstallKiloSort()
     
     % Create folders
     KiloSortTmp = [KiloSortTmpDir '\KiloSort'];
-    KiloSortWrapperTmp = [KiloSortWrapperTmpDir '\KiloSortWrapper'];
+    KiloSortWrapperTmp = KiloSortWrapperTmpDir;
     PhyTmp = [KiloSortTmpDir '\Phy'];
     npyTemp = [KiloSortTmpDir '\npy'];
 	mkdir(KiloSortTmp);
@@ -692,7 +695,7 @@ function downloadAndInstallKiloSort()
     
     % Download KiloSort
     url_KiloSort = 'https://github.com/cortex-lab/KiloSort/archive/master.zip';
-    KiloSortZipFile = bst_fullfile(KiloSortTmpDir, 'master.zip');
+    KiloSortZipFile = bst_fullfile(KiloSortTmpDir, '/Kilosort/master.zip');
     errMsg = gui_brainstorm('DownloadFile', url_KiloSort, KiloSortZipFile, 'KiloSort download');
     if ~isempty(errMsg)
         error(['Impossible to download KiloSort:' errMsg]);
@@ -707,14 +710,14 @@ function downloadAndInstallKiloSort()
     
     % Download Phy
     url_Phy = 'https://github.com/kwikteam/phy/archive/master.zip';
-    PhyZipFile = bst_fullfile(KiloSortTmpDir, 'master.zip');
+    PhyZipFile = bst_fullfile(KiloSortTmpDir, '/Phy/master.zip');
     errMsg = gui_brainstorm('DownloadFile', url_Phy, PhyZipFile, 'Phy download');
     if ~isempty(errMsg)
         error(['Impossible to download Phy:' errMsg]);
     end
     % Download npy-matlab
     url_npy = 'https://github.com/kwikteam/npy-matlab/archive/master.zip';
-    npyZipFile = bst_fullfile(KiloSortTmpDir, 'master.zip');
+    npyZipFile = bst_fullfile(KiloSortTmpDir, 'npy/master.zip');
     errMsg = gui_brainstorm('DownloadFile', url_npy, npyZipFile, 'npy-matlab download');
     if ~isempty(errMsg)
         error(['Impossible to download npy-Matlab:' errMsg]);
@@ -723,15 +726,15 @@ function downloadAndInstallKiloSort()
     
     % Unzip KiloSort zip-file
     bst_progress('start', 'KiloSort', 'Installing KiloSort...');
-    unzip(KiloSortZipFile, KiloSortTmpDir);
+    unzip(KiloSortZipFile, bst_fullfile(KiloSortTmpDir,'KiloSort'));
     % Get parent folder of the unzipped file
-    diropen = dir(fullfile(KiloSortTmpDir, 'MATLAB*'));
+    diropen = dir(fullfile(bst_fullfile(KiloSortTmpDir,'Kilosort'), 'MATLAB*'));
     idir = find([diropen.isdir] & ~cellfun(@(c)isequal(c(1),'.'), {diropen.name}), 1);
-    newKiloSortDir = bst_fullfile(KiloSortTmpDir, diropen(idir).name, 'KiloSort-master');
+    newKiloSortDir = bst_fullfile(KiloSortTmpDir, diropen(idir).name, 'Kilosort/KiloSort-master');
     % Move KiloSort directory to proper location
     movefile(newKiloSortDir, KiloSortDir);
     % Delete unnecessary files
-    file_delete(KiloSortTmpDir, 1, 3);
+    file_delete(bst_fullfile(KiloSortTmpDir,'Kilosort'), 1, 3);
     
     % Unzip KiloSort Wrapper zip-file
     bst_progress('start', 'KiloSort', 'Installing KiloSortWrapper...');
@@ -741,7 +744,7 @@ function downloadAndInstallKiloSort()
     idir = find([diropen.isdir] & ~cellfun(@(c)isequal(c(1),'.'), {diropen.name}), 1);
     newKiloSortWrapperDir = bst_fullfile(KiloSortWrapperTmpDir, diropen(idir).name, 'KiloSortWrapper-master');
     % Move KiloSort directory to proper location
-    movefile(newKiloSortWrapperDir, KiloSortDir);
+    movefile(newKiloSortWrapperDir, KiloSortWrapperDir);
     % Delete unnecessary files
     file_delete(KiloSortWrapperTmpDir, 1, 3);
     
@@ -753,7 +756,7 @@ function downloadAndInstallKiloSort()
     idir = find([diropen.isdir] & ~cellfun(@(c)isequal(c(1),'.'), {diropen.name}), 1);
     newPhyDir = bst_fullfile(PhyTmp, diropen(idir).name, 'phy-master');
     % Move KiloSort directory to proper location
-    movefile(newKiloSortDir, newPhyDir);
+    movefile(newPhyDir,phyDir);
     % Delete unnecessary files
     file_delete(PhyTmp, 1, 3);
     
@@ -764,14 +767,18 @@ function downloadAndInstallKiloSort()
     % Get parent folder of the unzipped file
     diropen = dir(fullfile(npyTemp, 'MATLAB*'));
     idir = find([diropen.isdir] & ~cellfun(@(c)isequal(c(1),'.'), {diropen.name}), 1);
-    newKiloSortDir = bst_fullfile(npyTemp, diropen(idir).name, 'npy-matlab-master');
+    newnpyDir = bst_fullfile(npyTemp, diropen(idir).name, 'npy-matlab-master');
     % Move KiloSort directory to proper location
-    movefile(newKiloSortDir, KiloSortDir);
+    movefile(newnpyDir, npyDir);
     % Delete unnecessary files
     file_delete(npyTemp, 1, 3);
     
+    % Delete tmp folder
+    file_delete(KiloSortTmpDir, 1, 3);
+
+    
     % Add KiloSort to Matlab path
-    addpath(genpath(KiloSortDir));
+    addpath(genpath(mainKilosortDir));
     
     
 end
