@@ -112,6 +112,53 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                     end
                     process_spikesorting_ultramegasort2000('downloadAndInstallUltraMegaSort2000');
                 end
+            
+            case 'kilosort'
+                KlustersExecutable = bst_get('KlustersExecutable');
+                if isempty(KlustersExecutable) || exist(KlustersExecutable, 'file') ~= 2
+                    % Try a common places for Klusters to be installed
+                    commonPaths = {'C:\Program Files (x86)\Klusters\bin\klusters.exe', ...
+                        'C:\Program Files\Klusters\bin\klusters.exe'};
+                    foundPath = 0;
+                    for iPath = 1:length(commonPaths)
+                        if exist(commonPaths{iPath}, 'file') == 2
+                            KlustersExecutable = commonPaths{iPath};
+                            bst_set('KlustersExecutable', KlustersExecutable);
+                            foundPath = 1;
+                            break;
+                        end
+                    end
+                    % If we cannot find it, prompt user
+                    if ~foundPath
+                        [res, isCancel] = java_dialog('question', ...
+                            ['<html><body><p>We cannot find an installation of Klusters on your computer.<br>', ...
+                            'Would you like to download it or look for the Klusters executable yourself?'], ...
+                            'Klusters executable', [], {'Download', 'Pick executable', 'Cancel'}, 'Cancel');
+                        if isCancel || isempty(res) || strcmpi(res, 'Cancel')
+                            return;
+                        end
+                        if strcmpi(res, 'Download')
+                            % Display web page
+                            klusters_url = 'http://neurosuite.sourceforge.net/';
+                            status = web(klusters_url, '-browser');
+                            if (status ~= 0)
+                                web(klusters_url);
+                            end
+                            return;
+                        end
+                        % For Windows, look for EXE files.
+                        if ~isempty(strfind(bst_get('OsType'), 'win'))
+                            filters = {'*.exe', 'Klusters executable (*.exe)'};
+                        else
+                            filters = {'*', 'Klusters executable'};
+                        end
+                        KlustersExecutable = java_getfile('open', 'Klusters executable', [], 'single', 'files', filters, {});
+                        if isempty(KlustersExecutable) || exist(KlustersExecutable, 'file') ~= 2
+                            return;
+                        end
+                    end
+                    bst_set('KlustersExecutable', KlustersExecutable);
+                end
 
             otherwise
                 bst_error('The chosen spike sorter is currently unsupported by Brainstorm.');
@@ -138,7 +185,7 @@ function OpenFigure()
     CloseFigure();
     
     GlobalData.SpikeSorting.Selected = GetNextElectrode();
-    
+
     electrodeFile = bst_fullfile(...
         GlobalData.SpikeSorting.Data.Spikes(GlobalData.SpikeSorting.Selected).Path, ...
         GlobalData.SpikeSorting.Data.Spikes(GlobalData.SpikeSorting.Selected).File);
@@ -162,6 +209,10 @@ function OpenFigure()
             GlobalData.SpikeSorting.Fig = figure('Units', 'Normalized', 'Position', ...
                 DataMat.spikes.params.display.default_figure_size);
             % Just open figure, rest of the code in LoadElectrode()
+        
+        case 'kilosort'
+            % Do nothing.
+        
         otherwise
             bst_error('This spike sorting structure is currently unsupported by Brainstorm.');
     end
@@ -174,16 +225,27 @@ function OpenFigure()
         delete(src);
         panel_spikes('UpdatePanel');
     end
-    GlobalData.SpikeSorting.Fig.CloseRequestFcn = @my_closereq;
+    if FigureIsOpen()
+        GlobalData.SpikeSorting.Fig.CloseRequestFcn = @my_closereq;
+    end
     
     bst_progress('stop');
 end
 
-function isOpen = FigureIsOpen()
+function isOpen = FigureIsOpen(varargin)
     global GlobalData;
+    
+    if nargin < 1
+        lenient = 0;
+    else
+        lenient = varargin{1};
+    end
+    
     isOpen = isfield(GlobalData, 'SpikeSorting') ...
-        && isfield(GlobalData.SpikeSorting, 'Fig') ...
-        && ishandle(GlobalData.SpikeSorting.Fig);
+        && (isfield(GlobalData.SpikeSorting, 'Fig') ...
+        && ishandle(GlobalData.SpikeSorting.Fig)) ...
+        || (lenient && strcmpi(GlobalData.SpikeSorting.Data.Device, 'kilosort'));
+    % For KiloSort, we're not sure it is open since it's outside matlab...
 end
 
 function CloseFigure()
@@ -198,7 +260,7 @@ end
 
 function LoadElectrode()
     global GlobalData;
-    if ~FigureIsOpen()
+    if ~FigureIsOpen(1)
         return;
     end
     
@@ -235,6 +297,13 @@ function LoadElectrode()
             if ishandle(load_button)
                 load_button.Visible = 'off';
             end
+        
+        case 'kilosort'
+            KlustersExecutable = bst_get('KlustersExecutable');
+            status = system(['"' KlustersExecutable, '" "', electrodeFile, '" &']);
+            if status ~= 0
+                bst_error('An error has occurred, could not start Klusters.');
+            end
             
         otherwise
             bst_error('This spike sorting structure is currently unsupported by Brainstorm.');
@@ -244,7 +313,7 @@ end
 function SaveElectrode()
     global GlobalData;
     
-    if ~FigureIsOpen()
+    if ~FigureIsOpen(1)
         return;
     end
     
@@ -273,6 +342,9 @@ function SaveElectrode()
             OutMat.filename = GlobalData.SpikeSorting.Data.Spikes(GlobalData.SpikeSorting.Selected).File;
             set(figdata.sfb, 'UserData', OutMat);
 
+        case 'kilosort'
+            % Do nothing.
+            
         otherwise
             bst_error('This spike sorting structure is currently unsupported by Brainstorm.');
     end
@@ -281,7 +353,7 @@ function SaveElectrode()
     GlobalData.SpikeSorting.Data.Spikes(GlobalData.SpikeSorting.Selected).Mod = 1;
     bst_save(GlobalData.SpikeSorting.Data.Name, GlobalData.SpikeSorting.Data, 'v6');
     
-    % Add event to linked raw file    
+    % Add event to linked raw file
     CreateSpikeEvents(GlobalData.SpikeSorting.Data.RawFile, ...
         GlobalData.SpikeSorting.Data.Device, ...
         electrodeFile, ...
@@ -298,6 +370,7 @@ function nextElectrode = GetNextElectrode()
     end
     
     numSpikes = length(GlobalData.SpikeSorting.Data.Spikes);
+    nextElectrode = [];
     
     if GlobalData.SpikeSorting.Selected < numSpikes
         nextElectrode = GlobalData.SpikeSorting.Selected + 1;
@@ -306,20 +379,22 @@ function nextElectrode = GetNextElectrode()
             nextElectrode = nextElectrode + 1;
         end
     end
-    if nextElectrode >= numSpikes || isempty(GlobalData.SpikeSorting.Data.Spikes(nextElectrode).File)
+    if isempty(nextElectrode) || nextElectrode > numSpikes || isempty(GlobalData.SpikeSorting.Data.Spikes(nextElectrode).File)
         nextElectrode = GlobalData.SpikeSorting.Selected;
     end
 end
 
 function newEvents = CreateSpikeEvents(rawFile, deviceType, electrodeFile, electrodeName, import, eventNamePrefix)
+    global GlobalData;
     if nargin < 6
         eventNamePrefix = '';
-    else
+    elseif ~isempty(eventNamePrefix)
         eventNamePrefix = [eventNamePrefix ' '];
     end
     newEvents = struct();
     DataMat = in_bst_data(rawFile);
     eventName = [eventNamePrefix GetSpikesEventPrefix() ' ' electrodeName];
+    gotEvents = 0;
 
     % Load spike data and convert to Brainstorm event format
     switch lower(deviceType)
@@ -357,37 +432,44 @@ function newEvents = CreateSpikeEvents(rawFile, deviceType, electrodeFile, elect
                 end
             end
             
+        case 'kilosort'
+            newEvents = process_spikesorting_kilosort('LoadKlustersEvents', ...
+                GlobalData.SpikeSorting.Data, GlobalData.SpikeSorting.Selected);
+            gotEvents = 1;
+            
         otherwise
             bst_error('This spike sorting structure is currently unsupported by Brainstorm.');
     end
     
-    if numNeurons == 1
-        newEvents(1).label      = eventName;
-        newEvents(1).color      = [rand(1,1), rand(1,1), rand(1,1)];
-        newEvents(1).epochs     = tmpEvents(1).epochs;
-        newEvents(1).times      = tmpEvents(1).times;
-        newEvents(1).samples    = round(newEvents(1).times .* DataMat.F.prop.sfreq);
-        newEvents(1).reactTimes = [];
-        newEvents(1).select     = 1;
-    elseif numNeurons > 1
-        for iNeuron = 1:numNeurons
-            newEvents(iNeuron).label      = [eventName ' |' num2str(iNeuron) '|'];
-            newEvents(iNeuron).color      = [rand(1,1), rand(1,1), rand(1,1)];
-            newEvents(iNeuron).epochs     = tmpEvents(iNeuron).epochs;
-            newEvents(iNeuron).times      = tmpEvents(iNeuron).times;
-            newEvents(iNeuron).samples    = round(newEvents(iNeuron).times .* DataMat.F.prop.sfreq);
-            newEvents(iNeuron).reactTimes = [];
-            newEvents(iNeuron).select     = 1;
+    if ~gotEvents
+        if numNeurons == 1
+            newEvents(1).label      = eventName;
+            newEvents(1).color      = [rand(1,1), rand(1,1), rand(1,1)];
+            newEvents(1).epochs     = tmpEvents(1).epochs;
+            newEvents(1).samples    = round(tmpEvents(1).times .* DataMat.F.prop.sfreq);
+            newEvents(1).times      = tmpEvents(1).times;
+            newEvents(1).reactTimes = [];
+            newEvents(1).select     = 1;
+        elseif numNeurons > 1
+            for iNeuron = 1:numNeurons
+                newEvents(iNeuron).label      = [eventName ' |' num2str(iNeuron) '|'];
+                newEvents(iNeuron).color      = [rand(1,1), rand(1,1), rand(1,1)];
+                newEvents(iNeuron).epochs     = tmpEvents(iNeuron).epochs;
+                newEvents(iNeuron).samples    = round(tmpEvents(iNeuron).times .* DataMat.F.prop.sfreq);
+                newEvents(iNeuron).times      = tmpEvents(iNeuron).times;
+                newEvents(iNeuron).reactTimes = [];
+                newEvents(iNeuron).select     = 1;
+            end
+        else
+            % This electrode just picked up noise, no event to add.
+            newEvents(1).label      = eventName;
+            newEvents(1).color      = [rand(1,1), rand(1,1), rand(1,1)];
+            newEvents(1).epochs     = [];
+            newEvents(1).samples    = [];
+            newEvents(1).times      = [];
+            newEvents(1).reactTimes = [];
+            newEvents(1).select     = 1;
         end
-    else
-        % This electrode just picked up noise, no event to add.
-        newEvents(1).label      = eventName;
-        newEvents(1).color      = [rand(1,1), rand(1,1), rand(1,1)];
-        newEvents(1).epochs     = [];
-        newEvents(1).times      = [];
-        newEvents(1).samples    = [];
-        newEvents(1).reactTimes = [];
-        newEvents(1).select     = 1;
     end
 
     if import
@@ -396,7 +478,7 @@ function newEvents = CreateSpikeEvents(rawFile, deviceType, electrodeFile, elect
         numEvents = length(DataMat.F.events);
         % Delete existing event(s)
         if numEvents > 0
-            iDelEvents = cellfun(@(x) ~isempty(x), strfind({DataMat.F.events.label}, eventName));
+            iDelEvents = cellfun(@(x) ~isempty(x), strfind({DataMat.F.events.label}, strtrim(eventName)));
             DataMat.F.events = DataMat.F.events(~iDelEvents);
             numEvents = length(DataMat.F.events);
         end
@@ -454,4 +536,20 @@ function isFirst = IsFirstNeuron(eventLabel, onlyIsFirst)
     if onlyIsFirst && isempty(neuron)
         isFirst = 1;
     end
+end
+
+function DeleteSpikeEvents(rawFile)
+    ProtocolInfo = bst_get('ProtocolInfo');
+    DataMat = in_bst_data(rawFile);
+    events = DataMat.F.events;
+    iKeepEvents = [];
+    
+    for iEvent = 1:length(events)
+        if ~IsSpikeEvent(events(iEvent).label)
+            iKeepEvents(end+1) = iEvent;
+        end
+    end
+    
+    DataMat.F.events = DataMat.F.events(iKeepEvents);
+    bst_save(bst_fullfile(ProtocolInfo.STUDIES, rawFile), DataMat, 'v6');
 end

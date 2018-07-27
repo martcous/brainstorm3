@@ -2970,6 +2970,13 @@ switch contextName
         catch
             argout3 = '';
         end
+    
+    case 'KlustersExecutable'
+        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences, 'KlustersExecutable')
+            argout1 = GlobalData.Preferences.KlustersExecutable;
+        else
+            argout1 = [];
+        end
         
         
 %% ===== FILE FILTERS =====
