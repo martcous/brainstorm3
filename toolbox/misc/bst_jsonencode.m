@@ -86,7 +86,7 @@ function str = stringify(val, addDelimiter)
         else
             str = ['"' strrep(val, '"', '\"') '"'];
         end
-    elseif isnumeric(val)
+    elseif isnumeric(val) || islogical(val)
         n = length(val);
         if n == 0
             str = '[]';
