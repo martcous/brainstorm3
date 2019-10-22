@@ -141,7 +141,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     % ===== RIGHT: RESET =====
     if (GlobalData.Program.GuiLevel == 1)
         jPanelReset = gui_river([5 5], [0 15 15 15], 'Reset Brainstorm');
-            gui_component('Label',  jPanelReset, [], 'Reset database and options to defaults: ', [], [], []);
+            gui_component('Label',  jPanelReset, [], 'This is a test ', [], [], []);
             gui_component('Button', jPanelReset, [], 'Reset', [], [], @ButtonReset_Callback);
         jPanelRight.add('br hfill', jPanelReset);
     end
