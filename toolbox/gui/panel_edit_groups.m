@@ -158,7 +158,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     function ButtonCreateGroup_Callback(varargin)
         import matlab.net.*;
         import matlab.net.http.*;
-        
+        %{
         groupname=jTextGroup.getText();
         if strcmp(groupname,'')~=1
             data=struct('Name',char(groupname));
@@ -172,14 +172,12 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             header = [acceptField,h1,h2,h3];
             method = RequestMethod.POST;
             r = RequestMessage(method,header,body);
-    %         contentTypeField = matlab.net.http.field.ContentTypeField('application/json');
 
             show(r);
 
             url=string(bst_get('UrlAdr'))+"/group/create";
             disp([url]);
-            gui_hide('Preferences');
-            uri= URI(url);       
+            gui_hide('Preferences');    
             try
                 [resp,~,hist]=send(r,uri);
                 status = resp.StatusCode;
@@ -187,13 +185,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                 if strcmp(txt,'200')==1 ||strcmp(txt,'OK')==1
                     content=resp.Body;                      
                     show(content);
-                    %{
-                    session=strtok(string(content),',');
-                    session=char(extractAfter(session,":"));
-                    %}
-    %                 session = jsondecode(content.Data);
-    %                 disp(session);
-    %                 bst_set('SessionId',string(session(1).sessionid));
                     java_dialog('msgbox', 'Create group successfully!');
                     %UpdatePanel();
                     UpdateGroupsList();
@@ -209,7 +200,26 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         else
             java_dialog('warning', 'Groupname cannot be empty!');
         end
+        %}
         
+        groupname=jTextGroup.getText();
+        if strcmp(groupname,'')~=1
+            data=struct('Name',char(groupname));
+            url=string(bst_get('UrlAdr'))+"/group/create";     
+            [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+            if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+                java_dialog('warning',status);
+            elseif strcmp(status,'500')==1 ||strcmp(status,'InternalServerError')==1
+                java_dialog('warning', 'Group already exist, change another name!');    
+            else
+                content=response.Body;                      
+                show(content);
+                java_dialog('msgbox', 'Create group successfully!');
+                UpdateGroupsList();
+            end
+        else
+            java_dialog('warning', 'Groupname cannot be empty!');
+        end
         
     end
 
@@ -341,7 +351,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
 
     %% ===== LOAD GROUPS =====
     function groups = LoadGroups()
-
+       %{
         import matlab.net.*;
         import matlab.net.http.*;
         groups = cell(0);
@@ -386,10 +396,36 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         catch
             java_dialog('warning', 'Load user groups failed! Check your url!');
         end
+        %}
+        
+        groups = cell(0);
+        data = struct('start',0,'count',100, 'order', 0);
+        serveradr = string(bst_get('UrlAdr'));
+        url=strcat(serveradr,"/user/listgroups");
+        gui_hide('Preferences');
+        [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+        if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+            java_dialog('warning',status);
+        elseif strcmp(status,'Session unavailable')==1
+            disp('sesss')
+        else
+            content=response.Body;                      
+            show(content);
+            responseData = jsondecode(content.Data);
+            if(size(responseData) > 0)
+                groups = cell(size(responseData));
+                for i = 1 : size(responseData)
+                    groups{i} = responseData(i).name;
+                end
+            end
+            disp('Load user groups successfully!');
+        end
+        disp("pass");
         %groups = {'NeuroSPEED', 'OMEGA', 'Ste-Justine Project'};
     end
     %% ===== LOAD MEMBERS =====
     function [members, permissions] = LoadMembers(group)
+        %{
         import matlab.net.*;
         import matlab.net.http.*;
         if isempty(group)
@@ -454,6 +490,52 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         catch
             java_dialog('warning', 'Load groups member failed! Check your url!');
         end
+        %}
+        if isempty(group)
+            members = [];
+            permissions = [];
+            return
+        end
+        
+        data = struct('name',group);
+        serveradr = string(bst_get('UrlAdr'));
+        url=strcat(serveradr,"/group/detail");
+        gui_hide('Preferences');
+        [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+        if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+            java_dialog('warning',status);
+        elseif strcmp(status,'Session unavailable')==1
+            gui_show('Preferences')
+        else
+            content=response.Body;                      
+            show(content);
+            responseData = jsondecode(content.Data);
+            if(size(responseData) > 0)
+                members = cell(size(responseData(1).users));
+                permissions = cell(size(responseData(1).users));
+                for i = 1 : size(responseData(1).users)
+                    firstname = responseData(1).users(i).firstname;
+                    lastname = responseData(1).users(i).lastname;
+                    email=responseData(1).users(i).email;
+                    privilege = responseData(1).users(i).privilege;
+                    name=strcat(firstname," ");
+                    name=strcat(name,lastname);
+                    name=strcat(name," (");
+                    name=strcat(name,email);
+                    name=strcat(name,")")
+                    members{i} = string(name);
+                    disp(members{i});
+                    if privilege==1
+                        permissions{i}='manager'
+                    else
+                        permissions{i}='member'
+                    end
+                end
+            end
+            disp('Load user groups successfully!');
+        end
+        
+        
 %         members = {'Martin Cousineau', 'Sylvain Baillet', 'Marc Lalancette'};
 %         permissions = {'admin', 'write', 'read'};
     end

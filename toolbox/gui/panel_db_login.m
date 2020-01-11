@@ -213,8 +213,7 @@ UpdatePanel();
                     'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
                     'deviceid',char(device));
                 url=string(jTextServerUrl.getText());
-                url=url+"/user/createuser";
-                uri= URI(url);  
+                url=url+"/user/createuser"; 
                 [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
                 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                     java_dialog('warning',status);
@@ -307,7 +306,6 @@ UpdatePanel();
                     'deviceid',char(device));
                 url=string(jTextServerUrl.getText());
                 url=url+"/user/login";
-                uri= URI(url);
                 [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
                 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                     java_dialog('warning',status);

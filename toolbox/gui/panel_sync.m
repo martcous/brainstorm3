@@ -21,7 +21,7 @@ end
 filename = "300mb.zip";
 blocksize = 10000000; %10mb
 url=strcat(string(bst_get('UrlAdr')),"/file/download/",filename);
-[response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url);
+[response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
 
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     java_dialog('warning',status);
