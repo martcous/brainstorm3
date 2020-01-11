@@ -123,7 +123,7 @@ for iFile = 1:length(RawFiles)
     % ===== OPENING FILE =====
     bst_progress('start', 'Open raw EEG/MEG recordings', 'Reading file header...');
     % Open file
-    [sFile, ChannelMat, errMsg, DataMat] = in_fopen(RawFiles{iFile}, FileFormat, ImportOptions);
+    [sFile, ChannelMat, errMsg, DataMat, ImportOptions] = in_fopen(RawFiles{iFile}, FileFormat, ImportOptions);
     if isempty(sFile)
         bst_progress('stop');
         return;
@@ -135,6 +135,10 @@ for iFile = 1:length(RawFiles)
     % Yokogawa non-registered warning
     if ~isempty(errMsg) && ImportOptions.DisplayMessages
         java_dialog('warning', errMsg, 'Open raw EEG/MEG recordings');
+    end
+    % Multiple FIF linked
+    if ImportOptions.DisplayMessages && strcmpi(FileFormat, 'FIF') && isfield(sFile, 'header') && isfield(sFile.header, 'fif_list') && (length(sFile.header.fif_list) >= 2)
+        java_dialog('msgbox', ['Multiple files were linked together:' 10 sprintf('- %s\n', sFile.header.fif_list{:}), 10], 'Open split FIF files');
     end
 
     % ===== OUTPUT STUDY =====

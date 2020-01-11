@@ -1220,14 +1220,14 @@ function DataPair = LoadConnectivityData(hFig, Options, Atlas, Surface)
                 B = sort(s, 'descend');
                 if length(B) > MaximumNumberOfData
                     t = B(MaximumNumberOfData);
-                    Valid = Valid & (M > t);
+                    Valid = Valid & (M >= t);
                 end
             else
                 [tmp,tmp,s] = find(M(Valid == 1));
                 B = sort(abs(s), 'descend');
                 if length(B) > MaximumNumberOfData
                     t = B(MaximumNumberOfData);
-                    Valid = Valid & ((M < -t) | (M > t));
+                    Valid = Valid & ((M <= -t) | (M >= t));
                 end
             end
         end
@@ -1243,8 +1243,16 @@ function DataPair = LoadConnectivityData(hFig, Options, Atlas, Surface)
 
     % ===== MATRIX STATISTICS ===== 
     DataMinMax = [min(DataPair(:,3)), max(DataPair(:,3))];
-    if isempty(DataMinMax) || (DataMinMax(1) == DataMinMax(2))
+    if isempty(DataMinMax)
         DataMinMax = [0 1];
+    elseif (DataMinMax(1) == DataMinMax(2))
+        if (DataMinMax(1) > 0)
+            DataMinMax = [0 DataMinMax(2)];
+        elseif (DataMinMax(2) < 0)
+            DataMinMax = [DataMinMax(1), 0];
+        else
+            DataMinMax = [0 1];
+        end
     end
     % Update figure variable
     bst_figures('SetFigureHandleField', hFig, 'DataMinMax', DataMinMax);

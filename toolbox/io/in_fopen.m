@@ -1,4 +1,4 @@
-function [sFile, ChannelMat, errMsg, DataMat] = in_fopen(DataFile, FileFormat, ImportOptions)
+function [sFile, ChannelMat, errMsg, DataMat, ImportOptions] = in_fopen(DataFile, FileFormat, ImportOptions)
 % IN_FOPEN:  Open a file for reading in Brainstorm.
 %
 % USAGE:  [sFile, ChannelMat, errMsg, DataMat] = in_fopen(DataFile, FileFormat, ImportOptions)
@@ -44,8 +44,8 @@ DataMat = [];
 errMsg = [];
 
 % SEEG: Detect file format
+[fPath,fBase,fExt] = bst_fileparts(DataFile);
 if ismember(FileFormat, {'SEEG-ALL', 'ECOG-ALL'})
-    [fPath,fBase,fExt] = bst_fileparts(DataFile);
     switch lower(fExt)
         case '.trc',  FileFormat = 'EEG-MICROMED';
         case '.eeg'
@@ -66,6 +66,10 @@ switch (FileFormat)
     % ===== SUPPORTED AS CONTINUOUS FILES =====
     case 'FIF'
         [sFile, ChannelMat] = in_fopen_fif(DataFile, ImportOptions);
+        % Multiple FIF linked: add number of files to the folder name in the database
+        if strcmpi(FileFormat, 'FIF') && isfield(sFile, 'header') && isfield(sFile.header, 'fif_list') && (length(sFile.header.fif_list) >= 2)
+            sFile.condition = sprintf('%s_(%d)', fBase, length(sFile.header.fif_list));
+        end
     case {'CTF', 'CTF-CONTINUOUS'}
         [sFile, ChannelMat] = in_fopen_ctf(DataFile);
     case '4D'
@@ -95,7 +99,7 @@ switch (FileFormat)
     case 'EEG-CURRY'
         [sFile, ChannelMat] = in_fopen_curry(DataFile);
     case {'EEG-EDF', 'EEG-BDF'}
-        [sFile, ChannelMat] = in_fopen_edf(DataFile, ImportOptions);
+        [sFile, ChannelMat, ImportOptions] = in_fopen_edf(DataFile, ImportOptions);
     case 'EEG-EEGLAB'
         [sFile, ChannelMat] = in_fopen_eeglab(DataFile, ImportOptions);
     case 'EEG-EGI-RAW'
@@ -113,7 +117,7 @@ switch (FileFormat)
     case 'EEG-NEUROSCAN-CNT'
         [sFile, ChannelMat] = in_fopen_cnt(DataFile, ImportOptions);
     case 'EEG-NEUROSCAN-EEG'
-        sFile = in_fopen_eeg(DataFile);
+        [sFile, ChannelMat] = in_fopen_eeg(DataFile);
     case 'EEG-NEUROSCAN-AVG'
         [sFile, ChannelMat] = in_fopen_avg(DataFile);
     case 'EEG-NEUROSCOPE'
@@ -146,6 +150,11 @@ switch (FileFormat)
     % ===== IMPORTED STRUCTURES =====
     case 'BST-DATA'
         [sFile, ChannelMat, DataMat] = in_fopen_bstmat(DataFile);
+        
+    % ===== OBJECTS IN MEMORY =====
+    case 'MNE-PYTHON'
+        [sFile, ChannelMat] = in_fopen_mne(DataFile, ImportOptions);
+        
     % ===== CONVERT TO CONTINUOUS =====
     case 'EEG-ASCII'
         [DataMat, ChannelMat] = in_data_ascii(DataFile);
@@ -161,6 +170,8 @@ switch (FileFormat)
         [DataMat, ChannelMat] = in_data_erplab(DataFile);
     case 'EEG-MUSE-CSV'
         [DataMat, ChannelMat] = in_data_muse_csv(DataFile);
+    case 'EEG-WS-CSV'
+        [DataMat, ChannelMat] = in_data_ws_csv(DataFile);
     case 'EEG-MAT'
         DataMat = in_data_mat(DataFile);
     case 'EEG-NEUROSCAN-DAT'

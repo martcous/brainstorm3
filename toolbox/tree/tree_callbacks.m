@@ -815,7 +815,7 @@ switch (lower(action))
                     % For each displayable sensor type, display an item in the "display" submenu
                     for iType = 1:length(DisplayMod)
                         channelTypeDisplay = getChannelTypeDisplay(DisplayMod{iType}, DisplayMod);
-                        if ismember(DisplayMod{iType}, {'EEG','ECOG','SEEG','ECOG+SEEG'}) && (length(bstNodes) == 1)
+                        if ismember(DisplayMod{iType}, {'EEG','ECOG','SEEG','ECOG+SEEG'}) && (length(bstNodes) == 1) && (~isempty(sSubject.iScalp) || ~isempty(sSubject.iInnerSkull) || ~isempty(sSubject.iCortex) || ~isempty(sSubject.iAnatomy))
                             if ~isempty(sSubject.iScalp)
                                 gui_component('MenuItem', jMenuDisplay, [], [channelTypeDisplay '   (Head)'],     IconLoader.ICON_SURFACE_SCALP,  [], @(h,ev)DisplayChannels(bstNodes, DisplayMod{iType}, 'scalp', 1));
                             end
@@ -2819,7 +2819,7 @@ function FileNames = GetAllFilenames(bstNodes, targetType, isExcludeBad, isFullP
     for iNode = 1:length(bstNodes)
         switch char(bstNodes(iNode).getType())
             case 'datalist'
-                [iDepStudies, iDepItems] = tree_dependencies(bstNodes, targetType);
+                [iDepStudies, iDepItems] = tree_dependencies(bstNodes(iNode), targetType);
                 if isequal(iDepStudies, -10)
                     disp('BST> Error in tree_dependencies.');
                     continue;
@@ -2834,7 +2834,7 @@ function FileNames = GetAllFilenames(bstNodes, targetType, isExcludeBad, isFullP
                     end
                 end
             case 'matrixlist'
-                [iDepStudies, iDepItems] = tree_dependencies(bstNodes, targetType);
+                [iDepStudies, iDepItems] = tree_dependencies(bstNodes(iNode), targetType);
                 if isequal(iDepStudies, -10)
                     disp('BST> Error in tree_dependencies.');
                     continue;

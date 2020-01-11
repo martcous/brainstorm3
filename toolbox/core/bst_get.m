@@ -29,6 +29,7 @@ function [argout1, argout2, argout3, argout4, argout5] = bst_get( varargin )
 %    - bst_get('FieldTripDir')          : Full path to a local installation of FieldTrip
 %    - bst_get('SpmDir')                : Full path to a local installation of SPM
 %    - bst_get('SpmTpmAtlas')           : Full path to the SPM atlas TPM.nii
+%    - bst_get('PythonConfig')          : Configuration of the python environment from Matlab
 %
 % ====== PROTOCOLS ====================================================================
 %    - bst_get('iProtocol')             : Indice of current protocol 
@@ -2202,17 +2203,9 @@ switch contextName
         end
         % Get defaults from internet 
         if ~ismember(lower({sTemplates.Name}), 'icbm152')
-            sTemplates(end+1).FilePath = 'https://neuroimage.usc.edu/bst/getupdate.php?t=ICBM152_2016c';
+            sTemplates(end+1).FilePath = 'https://neuroimage.usc.edu/bst/getupdate.php?t=ICBM152_2019';
             sTemplates(end).Name = 'ICBM152';
         end
-%         if ~ismember(lower({sTemplates.Name}), 'icbm152_2016')
-%             sTemplates(end+1).FilePath = 'https://neuroimage.usc.edu/bst/getupdate.php?t=ICBM152_2016';
-%             sTemplates(end).Name = 'ICBM152_2016';
-%         end
-%         if ~ismember(lower({sTemplates.Name}), 'icbm152_2016c')
-%             sTemplates(end+1).FilePath = 'https://neuroimage.usc.edu/bst/getupdate.php?t=ICBM152_2016c';
-%             sTemplates(end).Name = 'ICBM152_2016c';
-%         end
         if ~ismember(lower({sTemplates.Name}), 'icbm152_2019')
             sTemplates(end+1).FilePath = 'https://neuroimage.usc.edu/bst/getupdate.php?t=ICBM152_2019';
             sTemplates(end).Name = 'ICBM152_2019';
@@ -2624,11 +2617,36 @@ switch contextName
         if ~isempty(spmDir)
             disp([' - ' tpmSpm]);
         end
+
     case 'UrlAdr'
         if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'UrlAdr')&& ~isempty(GlobalData.Preferences.UrlAdr)
             argout1=GlobalData.Preferences.UrlAdr;
         else
             argout1=[];
+        end
+                                          
+        % Return the preferred location: .brainstorm/defaults/spm/TPM.nii
+        argout1 = tpmUser;
+        
+    case 'PythonConfig'
+        defPref = struct(...
+            'PythonExe',  '', ...
+            'PythonPath', 0, ...
+            'QtDir',      '');
+        argout1 = FillMissingFields(contextName, defPref);
+        % Check that the python executable is available
+        if ~isempty(argout1.PythonExe) && ~file_exist(argout1.PythonExe)
+            disp(['Error: Python executable not found: ' argout1.PythonExe]);
+            argout1.PythonExe = '';
+        elseif ~ischar(argout1.PythonExe)
+            argout1.PythonExe = '';
+        end
+        % Check the validity of the other values
+        if ~ischar(argout1.PythonPath)
+            argout1.PythonPath = '';
+        end
+        if ~ischar(argout1.QtDir)
+            argout1.QtDir = '';
         end
         
     case 'DeviceId'
@@ -3286,6 +3304,7 @@ switch contextName
                      {'.eeg'},               'EEG: Nihon Kohden (*.eeg)',            'EEG-NK'; ...
                      {'.plx','.pl2'},        'EEG: Plexon (*.plx;*.pl2)',            'EEG-PLEXON'; ...
                      {'.ns1','.ns2','.ns3','.ns4','.ns5','.ns6'}, 'EEG: Ripple Trellis (*.nsX/*.nev)', 'EEG-RIPPLE'; ...
+                     {'.csv'},               'EEG: Wearable Sensing (*.csv)',        'EEG-WS-CSV'; ...
                      {'.nirs'},              'NIRS: Brainsight (*.nirs)',            'NIRS-BRS'; ...
                      {'.edf'},               'EyeLink eye tracker (*.edf)',          'EYELINK'; ...
                     };
@@ -3335,6 +3354,7 @@ switch contextName
                      {'.plx','.pl2'},        'EEG: Plexon (*.plx;.pl2)'              'EEG-PLEXON'; ...
                      {'.ns1','.ns2','.ns3','.ns4','.ns5','.ns6'}, 'EEG: Ripple Trellis (*.nsX/*.nev)', 'EEG-RIPPLE'; ...
                      {'.tbk'},               'EEG: Tucker Davis Technologies (*.tbk)',    'EEG-TDT'; ...
+                     {'.csv'},               'EEG: Wearable Sensing (*.csv)',        'EEG-WS-CSV'; ...
                      {'.trc','.eeg','.e','.bin','.rda','.edf','.bdf'}, 'SEEG: Deltamed/Micromed/NK/Nicolet/BrainAmp/EDF', 'SEEG-ALL'; ...
                      {'.trc','.eeg','.e','.bin','.rda','.edf','.bdf'}, 'ECOG: Deltamed/Micromed/NK/Nicolet/BrainAmp/EDF', 'ECOG-ALL'; ...
                      {'.nirs'},              'NIRS: Brainsight (*.nirs)',            'NIRS-BRS'; ...

@@ -116,7 +116,8 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         strHelp = ['Examples:<BR>' ...
             '  Cz-C4 : Cz,-C4          % Difference Cz-C4<BR>' ...
             '  MC    : 0.5*M1, 0.5*M2  % Average of M1 and M2<BR>' ...
-            '  EOG|00FF00 : EOG        % Display EOG in green<BR>'];
+            '  EOG|00FF00 : EOG        % Show EOG in green (RGB hexa)<BR>' ...
+            '  Pz-alpha|8-12Hz : Pz    % Filter Pz signal at 8-12 Hz'];
         gui_component('label', jPanelText, BorderLayout.NORTH, ['<HTML><PRE>' strHelp '</PRE>']);
         % TEXT: Create text editor
         jTextMontage = JTextArea(6, 12);
@@ -148,6 +149,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     jPanelBottom = gui_component('Panel');
     jPanelBottomLeft = gui_river([10 0], [10 10 0 10]);
     jPanelBottomRight = gui_river([10 0], [10 10 0 10]);
+        gui_component('button', jPanelBottomLeft, [], 'Help', [], [],  @(h,ev)web('https://neuroimage.usc.edu/brainstorm/Tutorials/MontageEditor', '-browser'));
         jButtonValidate = gui_component('button', jPanelBottomLeft,  [], 'Validate');
         jButtonValidate.setVisible(0);
         gui_component('button', jPanelBottomRight, [], 'Cancel', [], [], @(h,ev)ButtonCancel_Callback());
@@ -1657,48 +1659,53 @@ function CreateFigurePopupMenu(jMenu, hFig) %#ok<DEFNU>
         jItem.setAccelerator(KeyStroke.getKeyStroke(int32(KeyEvent.VK_A), KeyEvent.SHIFT_MASK));
     end
     % MENUS: List of available montages
-    subMenus = struct;
-    for i = 1:length(sFigMontages)
-        % Is it the selected one
-        if ~isempty(TsInfo.MontageName)
-            isSelected = strcmpi(sFigMontages(i).Name, TsInfo.MontageName);
-        else
-            isSelected = 0;
-        end
-        % Special test for average reference
-        if ~isempty(strfind(sFigMontages(i).Name, 'Average reference'))
-            DisplayName = sFigMontages(i).Name;
-            jSubMenu = jMenu;
-        % Temporary montages:  Remove the [tmp] tag or display
-        elseif ~isempty(strfind(sFigMontages(i).Name, '[tmp]'))
-            MontageName = strrep(sFigMontages(i).Name, '[tmp]', '');
-            DisplayName = ['<HTML><I>' MontageName '</I>'];
-            % Parse name for sub menus
-            GroupName = strtrim(str_remove_parenth(MontageName));
-            stdName = ['m', file_standardize(GroupName, 0, '_', 1)];
-            stdName((stdName == '.') | (stdName == '-') | (stdName == '@')) = '_';
-            if isfield(subMenus, stdName)
-                jSubMenu = subMenus.(stdName);
+    if ~isempty(sFigMontages)
+        subMenus = struct;
+        GroupNames = cellfun(@(c)strtrim(str_remove_parenth(strrep(c, '[tmp]', ''))), {sFigMontages.Name}, 'UniformOutput', 0);
+        for i = 1:length(sFigMontages)
+            % Is it the selected one
+            if ~isempty(TsInfo.MontageName)
+                isSelected = strcmpi(sFigMontages(i).Name, TsInfo.MontageName);
             else
-                jSubMenu = gui_component('Menu', jMenu, [], ['<HTML><I>' GroupName '</I>']);
-                subMenus.(stdName) = jSubMenu;
+                isSelected = 0;
             end
-        else
-            DisplayName = sFigMontages(i).Name;
-            jSubMenu = jMenu;
-        end
-        % Create menu
-        jItem = gui_component('CheckBoxMenuItem', jSubMenu, [], DisplayName, [], [], @(h,ev)SetCurrentMontage(hFig, sFigMontages(i).Name));
-        jItem.setSelected(isSelected);
-        shortcut = [];
-        for iShortcut = 1:25
-            if strcmpi(CleanMontageName(sFigMontages(i).Name), MontageOptions.Shortcuts{iShortcut,2})
-                shortcut = MontageOptions.Shortcuts{iShortcut,1};
-                break;
+            % Special test for average reference
+            if ~isempty(strfind(sFigMontages(i).Name, 'Average reference'))
+                DisplayName = sFigMontages(i).Name;
+                jSubMenu = jMenu;
+            % Temporary montages:  Remove the [tmp] tag or display
+            elseif ~isempty(strfind(sFigMontages(i).Name, '[tmp]'))
+                MontageName = strrep(sFigMontages(i).Name, '[tmp]', '');
+                DisplayName = ['<HTML><I>' MontageName '</I>'];
+                % Parse name for sub menus
+                stdName = ['m', file_standardize(GroupNames{i}, 0, '_', 1)];
+                stdName((stdName == '.') | (stdName == '-') | (stdName == '@')) = '_';
+                if (nnz(strcmpi(GroupNames{i}, GroupNames)) == 1)
+                    % Only element in its group
+                    jSubMenu = jMenu;
+                elseif isfield(subMenus, stdName)
+                    jSubMenu = subMenus.(stdName);
+                else
+                    jSubMenu = gui_component('Menu', jMenu, [], ['<HTML><I>' GroupNames{i} '</I>']);
+                    subMenus.(stdName) = jSubMenu;
+                end
+            else
+                DisplayName = sFigMontages(i).Name;
+                jSubMenu = jMenu;
             end
-        end
-        if ~isempty(shortcut)
-            jItem.setAccelerator(KeyStroke.getKeyStroke(int32(KeyEvent.VK_A + shortcut - 'a'), KeyEvent.SHIFT_MASK));
+            % Create menu
+            jItem = gui_component('CheckBoxMenuItem', jSubMenu, [], DisplayName, [], [], @(h,ev)SetCurrentMontage(hFig, sFigMontages(i).Name));
+            jItem.setSelected(isSelected);
+            shortcut = [];
+            for iShortcut = 1:25
+                if strcmpi(CleanMontageName(sFigMontages(i).Name), MontageOptions.Shortcuts{iShortcut,2})
+                    shortcut = MontageOptions.Shortcuts{iShortcut,1};
+                    break;
+                end
+            end
+            if ~isempty(shortcut)
+                jItem.setAccelerator(KeyStroke.getKeyStroke(int32(KeyEvent.VK_A + shortcut - 'a'), KeyEvent.SHIFT_MASK));
+            end
         end
     end
     drawnow;
@@ -2332,6 +2339,68 @@ function AddAutoMontagesNirs(ChannelMat)
 end
 
 
+%% ===== ADD AUTO MONTAGES: PROJECTORS =====
+% USAGE:  panel_montage('AddAutoMontagesProj', ChannelMat)
+%         panel_montage('AddAutoMontagesProj')              % Loads montage for currently selected file
+function AddAutoMontagesProj(ChannelMat)
+    global GlobalData;
+    % Get current channels
+    if (nargin < 1) || isempty(ChannelMat)
+        iDS = panel_record('GetCurrentDataset');
+        if isempty(iDS)
+            return;
+        end
+        ChannelMat = in_bst_channel(GlobalData.DataSet(iDS).ChannelFile);
+    end
+    % Loop on all the projectors available
+    for iProj = 1:length(ChannelMat.Projector)
+        % Get selected channels
+        sCat = ChannelMat.Projector(iProj);
+        iChannels = any(sCat.Components,2);
+        % Skip referencing montages
+        if (length(sCat.Comment) < 3) || strcmpi(sCat.Comment(1:3), 'EEG')
+            continue;
+        end
+        % ICA
+        if isequal(sCat.SingVal, 'ICA')
+            % Field Components stores the mixing matrix W
+            W = sCat.Components(iChannels, :)';
+            % Display name
+            strDisplay = 'IC';
+        % SSP
+        else
+            % Field Components stores the spatial components U
+            U = sCat.Components(iChannels, :);
+            % SSP/PCA results
+            if ~isempty(sCat.SingVal) 
+                Singular = sCat.SingVal ./ sum(sCat.SingVal);
+            % SSP/Mean results
+            else
+                Singular = eye(size(U,2));
+            end
+            % Rebuild mixing matrix
+            W = diag(sqrt(Singular)) * pinv(U);
+            % Display name
+            strDisplay = 'SSP';
+        end
+        % Create line labels
+        LinesLabels = cell(size(W,1), 1);
+        for iComp = 1:length(LinesLabels)
+            LinesLabels{iComp} = sprintf('%s%d', strDisplay, iComp);
+        end
+        % Create new montage on the fly
+        sMontage = db_template('Montage');
+        sMontage.Name      = [sCat.Comment, '[tmp]'];
+        sMontage.Type      = 'matrix';
+        sMontage.ChanNames = {ChannelMat.Channel(iChannels).Name};
+        sMontage.DispNames = LinesLabels;
+        sMontage.Matrix    = W;
+        % Add montage: orig
+        panel_montage('SetMontage', sMontage.Name, sMontage);
+    end
+end
+
+
 %% ===== UNLOAD AUTO MONTAGES =====
 function UnloadAutoMontages() %#ok<DEFNU>
     global GlobalData;
@@ -2379,26 +2448,42 @@ end
 
 
 %% ===== PARSE LINE LABELS =====
-function [LinesLabels, LinesColor] = ParseMontageLabels(LinesLabels, DefaultColor)
+function [LinesLabels, LinesColor, LinesFilter] = ParseMontageLabels(LinesLabels, DefaultColor)
     % Number of lines
     nLines = length(LinesLabels);
-    % If some channels use the extended "NAME|COLOR"
-    if any(cellfun(@(c)any(c == '|'), LinesLabels)) % && ~any(cellfun(@(c)any(c == ' '), LinesLabels))
+    % If some channels use the extended "NAME|COLOR" or "NAME|FREQBAND"
+    if any(cellfun(@(c)any(c == '|'), LinesLabels))
         LinesColor = repmat(DefaultColor, nLines, 1);
-        for i = 1:length(LinesLabels)
-            splitLabel = str_split(LinesLabels{i}, '|');
+        LinesFilter = zeros(nLines, 2);
+        for iLine = 1:length(LinesLabels)
+            splitLabel = str_split(LinesLabels{iLine}, '|');
             % Channel name
-            LinesLabels{i} = splitLabel{1};
-            % Channel color
-            if (length(splitLabel) >= 2) && (length(splitLabel{2}) == 6)
-                color = [hex2dec(splitLabel{2}(1:2)), hex2dec(splitLabel{2}(3:4)), hex2dec(splitLabel{2}(5:6))];
-                if (length(color) == 3)
-                    LinesColor(i,:) = color ./ 255;
+            LinesLabels{iLine} = splitLabel{1};
+            % Other options
+            for iOpt = 2:length(splitLabel)
+                % Channel color
+                if (length(splitLabel{iOpt}) == 6) && all(ismember(splitLabel{iOpt}, '0123456789ABCDEF'))
+                    color = [hex2dec(splitLabel{iOpt}(1:2)), hex2dec(splitLabel{iOpt}(3:4)), hex2dec(splitLabel{iOpt}(5:6))];
+                    if (length(color) == 3)
+                        LinesColor(iLine,:) = color ./ 255;
+                    else
+                        disp(['BST> Montage: Invalid color string "' splitLabel{iOpt} '"']);
+                    end
+                elseif (length(splitLabel{iOpt}) >= 5) && strcmpi(splitLabel{iOpt}(end-1:end), 'Hz')
+                    freqband = sscanf(lower(splitLabel{iOpt}), '%f-%fhz');
+                    if (length(freqband) == 2) && ((freqband(1) < freqband(2)) || (freqband(2) == 0)) && all(freqband >= 0)
+                        LinesFilter(iLine,:) = freqband(:)';
+                    else
+                        disp(['BST> Montage: Invalid frequency band "' splitLabel{iOpt} '"']);
+                    end
+                else
+                    disp(['BST> Montage: Invalid option "' splitLabel{iOpt} '"']);
                 end
             end
         end
     else
         LinesColor = [];
+        LinesFilter = [];
     end
 end
 

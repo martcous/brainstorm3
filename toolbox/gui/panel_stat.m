@@ -49,7 +49,7 @@ function bstPanelNew = CreatePanel() %#ok<DEFNU>
     % ===== THRESHOLDING =====
     jPanelThresh = gui_river([4,1], [2,8,4,0], 'Thresholding');
         % Threshold p-value: Title
-        jLabelThresh = gui_component('Label', jPanelThresh, [], 'p-value threshold: ');
+        jLabelThresh = gui_component('Label', jPanelThresh, [], '<HTML>Significance level &alpha;: ');
         % Threshold p-value: Value
         jTextPThresh = gui_component('Text', jPanelThresh, 'tab', '');
         jTextPThresh.setHorizontalAlignment(JLabel.RIGHT);
@@ -272,13 +272,10 @@ function UpdatePanel(ctrl)
     switch (StatThreshOptions.Correction)
         case 'no'
             ctrl.jRadioCorrNo.setSelected(1);
-            ctrl.jLabelThresh.setText('p-value threshold: ');
         case 'bonferroni'
             ctrl.jRadioCorrBonf.setSelected(1);
-            ctrl.jLabelThresh.setText('p-value threshold: ');
         case 'fdr'
             ctrl.jRadioCorrFdr.setSelected(1);
-            ctrl.jLabelThresh.setText('q-value threshold: ');
     end
     % Control
     if ismember(1, StatThreshOptions.Control)
@@ -428,16 +425,11 @@ function SaveOptions()
     % Multiple comparisons
     if ctrl.jRadioCorrBonf.isSelected()
         StatThreshOptions.Correction = 'bonferroni';
-        labelThresh = 'p-value threshold: ';
     elseif ctrl.jRadioCorrFdr.isSelected()
         StatThreshOptions.Correction = 'fdr';
-        labelThresh = 'q-value threshold: ';
     else
         StatThreshOptions.Correction = 'no';
-        labelThresh = 'p-value threshold: ';
     end
-    % Update threshold label
-    ctrl.jLabelThresh.setText(labelThresh);
     % Control
     StatThreshOptions.Control = [];
     if ctrl.jRadioControlSpace.isSelected()
@@ -553,15 +545,16 @@ function [sClusters, iClusters] = GetDisplayedClusters(hFig)
             iClusters = [];
             sClusters = [];
         case 'select'
-            % If the target figure is not the figure that is currently selected: nothing to display
-            hFigCur = bst_figures('GetCurrentFigure');
-            if ~isequal(hFigCur, hFig)
-                iClusters = [];
-                sClusters = [];
-            % Get the clusters that are selected in the JList
-            else
+            % Check that the number of clusters is correct
+            % Possible error: if there are multiple files with different clusters displayed together, 
+            % the selection may apply improperly to inappropriate files
+            if (length(sClusters) == ctrl.jListClusters.getModel().getSize())
+                % Get the clusters that are selected in the JList
                 iClusters = ctrl.jListClusters.getSelectedIndices() + 1;
                 sClusters = sClusters(iClusters);
+            else
+                iClusters = [];
+                sClusters = [];
             end
         case 'all'
             % Keep all the significant clusters

@@ -255,6 +255,9 @@ function GUI = CreateWindow() %#ok<DEFNU>
         jToolButtonSubject     = gui_component('ToolbarToggle', jToolbarExpMode, [], [], {IconLoader.ICON_SUBJECTDB,    TB_DIM, jButtonGroup}, '<HTML><B>Anatomy</B>:<BR>MRI, surfaces</HTML>', [], []);
         jToolButtonStudiesSubj = gui_component('ToolbarToggle', jToolbarExpMode, [], [], {IconLoader.ICON_STUDYDB_SUBJ, TB_DIM, jButtonGroup}, '<HTML><B>Functional data</B> (sorted by subjects):<BR>channels, head models, recordings, results</HTML>', [], []);
         jToolButtonStudiesCond = gui_component('ToolbarToggle', jToolbarExpMode, [], [], {IconLoader.ICON_STUDYDB_COND, TB_DIM, jButtonGroup}, '<HTML><B>Functional data</B> (sorted by conditions):<BR>channels, head models, recordings, results</HTML>', [], []);
+        % Search button
+        jToolbarSearch      = gui_component('Toolbar', jPanelExplorerTop, java.awt.BorderLayout.EAST, []);
+        jToolSearchDatabase = gui_component('ToolbarButton', jToolbarSearch, [], [], {IconLoader.ICON_ZOOM, TB_DIM, jButtonGroup}, 'Search Database', @(h,ev)panel_protocols('MainPopupMenu', ev.getSource()), []);
     jPanelExplorer.add(jPanelExplorerTop, java.awt.BorderLayout.NORTH);
 
     % ==== TOOLS CONTAINER ====
@@ -467,6 +470,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
              'jToolButtonSubject',     jToolButtonSubject, ...
              'jToolButtonStudiesSubj', jToolButtonStudiesSubj, ...
              'jToolButtonStudiesCond', jToolButtonStudiesCond, ...
+             'jToolSearchDatabase',    jToolSearchDatabase, ...
              'jComboBoxProtocols',     jComboBoxProtocols, ...
              'jButtonRecordingsA',      jButtonRecordingsA, ...
              'jButtonSourcesA',         jButtonSourcesA, ...
@@ -499,6 +503,14 @@ function GUI = CreateWindow() %#ok<DEFNU>
 %  =================================================================================
 %% ===== CLOSE WINDOW =====
     function closeWindow_Callback(varargin)
+        % Check that global variables are still accessible
+        if ~exist('GlobalData', 'var') || isempty(GlobalData) || ~isfield(GlobalData, 'Program') || ~isfield(GlobalData.Program, 'GuiLevel') || isempty(GlobalData.Program.GuiLevel)
+            disp('BST> Error: Brainstorm global variables were cleared.');
+            disp('BST> Never call "clear" in your scripts while Brainstorm is running.');
+            % Force deleting the window
+            jBstFrame.dispose();
+            return;
+        end
         % If GUI was displayed: save current position
         if (GlobalData.Program.GuiLevel >= 1)
             % Update main window size and position
@@ -543,7 +555,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
             % Update the Layout structure
             bst_set('Layout', 'ExplorationMode', ExplorationMode);
             % Update tree display
-            panel_protocols('UpdateTree');
+            panel_protocols('UpdateTree', 0);
         end
         % Empty clipboard
         bst_set('Clipboard', []);
@@ -609,9 +621,9 @@ function GUI = CreateWindow() %#ok<DEFNU>
         jPopup = java_create('javax.swing.JPopupMenu');
         % What field to search for: {'FileName', 'Comment'}
         groupTarget = java_create('javax.swing.ButtonGroup');
-        jRadioFilename = gui_component('RadioMenuItem', jPopup, [], 'Search file names', groupTarget, [], @(h,ev)SetFilterOption('Target', 'FileName'), fontSize);
-        jRadioComment  = gui_component('RadioMenuItem', jPopup, [], 'Search comments',   groupTarget, [], @(h,ev)SetFilterOption('Target', 'Comment'), fontSize);
-        jRadioParent   = gui_component('RadioMenuItem', jPopup, [], 'Search parent comments',   groupTarget, [], @(h,ev)SetFilterOption('Target', 'Parent'), fontSize);
+        jRadioFilename = gui_component('RadioMenuItem', jPopup, [], 'Search file paths', groupTarget, [], @(h,ev)SetFilterOption('Target', 'FileName'), fontSize);
+        jRadioComment  = gui_component('RadioMenuItem', jPopup, [], 'Search names',   groupTarget, [], @(h,ev)SetFilterOption('Target', 'Comment'), fontSize);
+        jRadioParent   = gui_component('RadioMenuItem', jPopup, [], 'Search parent names',   groupTarget, [], @(h,ev)SetFilterOption('Target', 'Parent'), fontSize);
         jPopup.addSeparator();
         % What to do with the filtered files: {'Select', 'Exclude'}
         groupAction = java_create('javax.swing.ButtonGroup');
@@ -625,7 +637,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
         switch (NodelistOptions.Target)
             case 'FileName', jRadioFilename.setSelected(1);
             case 'Comment',  jRadioComment.setSelected(1);
-            case 'Parent',   jRadioParent.setSelected(1);    
+            case 'Parent',   jRadioParent.setSelected(1);
         end
         switch (NodelistOptions.Action)
             case 'Select',  jRadioSelect.setSelected(1);
@@ -940,6 +952,8 @@ function SetCurrentProtocol(iProtocol)
         jComboBoxProtocols.repaint();
     end
     % ===== UPDATE GUI =====
+    % Close any active searches
+    panel_protocols('CloseAllDatabaseTabs');
     % Update tree model
     panel_protocols('UpdateTree');
     % Update "Time Window" 

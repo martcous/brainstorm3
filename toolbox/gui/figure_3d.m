@@ -19,7 +19,8 @@ function varargout = figure_3d( varargin )
 %                 figure_3d('ColorFibers',           fibLines, Color)
 %                 figure_3d('SelectFiberScouts',     hFigConn, iScouts, Color, ColorOnly)
 %     [hFig,hs] = figure_3d('PlotSurface',           hFig, faces, verts, cdata, dataCMap, transparency)
-
+%                 figure_3d('PlotCoils',             hFig, Modality, isDetails)
+%
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % https://neuroimage.usc.edu/brainstorm
@@ -3451,6 +3452,10 @@ function ViewSensors(hFig, isMarkers, isLabels, isMesh, Modality)
     % === 3DVIZ ===
     else
         Channel = GlobalData.DataSet(iDS).Channel;
+        % If not modality information, pick the default one
+        if isempty(Modality) && isempty(Figure.SelectedChannels)
+            [AllMod,DispMod,Modality] = bst_get('ChannelModalities',  GlobalData.DataSet(iDS).ChannelFile);
+        end
         % Find sensors of the target modality, select and display them
         if isempty(Modality)
             selChan = Figure.SelectedChannels;
@@ -4011,6 +4016,12 @@ function PlotCoils(hFig, Modality, isDetails)
                 if strcmpi(Channels(i).Type, 'MEG MAG') && (nPoints == 4)
                     oriLength = 0.015;
                     chLoc = Channels(i).Loc(:,[1 2 4 3])' .* 1.00;
+                    % Square of integration points is 2x smaller than the actual sensor: simply scale it
+                    coilScaleF=0.5;
+                    chLoc = [(1+2*coilScaleF)*chLoc(1,:) - coilScaleF*chLoc(2,:) - coilScaleF*chLoc(4,:);
+                             (1+2*coilScaleF)*chLoc(2,:) - coilScaleF*chLoc(1,:) - coilScaleF*chLoc(3,:);
+                             (1+2*coilScaleF)*chLoc(3,:) - coilScaleF*chLoc(2,:) - coilScaleF*chLoc(4,:);
+                             (1+2*coilScaleF)*chLoc(4,:) - coilScaleF*chLoc(1,:) - coilScaleF*chLoc(3,:)];
                     % Coil patch
                     patch('Vertices', chLoc, 'FaceColor', [1 1 0], patchOpt{:});
                     % Additional details
@@ -4036,6 +4047,12 @@ function PlotCoils(hFig, Modality, isDetails)
                         chLoc = Channels(i).Loc(:,[1 2 4 3])' .* 1.02;
                         Color = [.2 1 .2];
                     end
+                    % Square of integration points is 2x smaller than the actual sensor: simply scale it
+                    coilScaleF=0.278;
+                    chLoc = [(1+2*coilScaleF)*chLoc(1,:) - coilScaleF*chLoc(2,:) - coilScaleF*chLoc(4,:);
+                             (1+2*coilScaleF)*chLoc(2,:) - coilScaleF*chLoc(1,:) - coilScaleF*chLoc(3,:);
+                             (1+2*coilScaleF)*chLoc(3,:) - coilScaleF*chLoc(2,:) - coilScaleF*chLoc(4,:);
+                             (1+2*coilScaleF)*chLoc(4,:) - coilScaleF*chLoc(1,:) - coilScaleF*chLoc(3,:)];
                     % Split in two coils
                     Vertices1 = [chLoc([1,2],:); .6 .* chLoc([2,1],:) + .4 .* chLoc([3,4],:)];
                     Vertices2 = [.4 .* chLoc([1,2],:) + .6 .* chLoc([4,3],:); chLoc([3,4],:)];
