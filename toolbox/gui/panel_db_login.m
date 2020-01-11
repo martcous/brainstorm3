@@ -169,7 +169,7 @@ UpdatePanel();
                 else
                     device=bst_get('DeviceId');
                 end
-                
+                %{
                 data = struct('firstName',char(jTextFirstName.getText()),'lastName',char(jTextLastName.getText()),...
                     'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
                     'deviceid',char(device));
@@ -207,6 +207,31 @@ UpdatePanel();
                 catch
                     java_dialog('warning', 'Check server url!');
                 end
+                %}
+                
+                data = struct('firstName',char(jTextFirstName.getText()),'lastName',char(jTextLastName.getText()),...
+                    'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
+                    'deviceid',char(device));
+                url=string(jTextServerUrl.getText());
+                url=url+"/user/createuser";
+                uri= URI(url);  
+                [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
+                if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+                    java_dialog('warning',status);
+                else
+                    newUrlAdr = char(jTextServerUrl.getText());
+                    if ~isempty(newUrlAdr)
+                        bst_set('UrlAdr',newUrlAdr)
+                    end
+                    content=response.Body;
+                    show(content);
+                    bst_set('Email',jTextEmail.getText());
+                    session = jsondecode(content.Data);
+                    bst_set('SessionId',string(session.sessionid));
+                    %UpdatePanel();
+                    java_dialog('msgbox', 'Register successfully!');
+                end
+                
             end
             
         else
@@ -236,7 +261,7 @@ UpdatePanel();
                 else
                     device=bst_get('DeviceId');
                 end
-                
+                %{
                 data=struct('email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
                     'deviceid',char(device));
                 body=MessageBody(data);
@@ -276,27 +301,28 @@ UpdatePanel();
                 catch
                     java_dialog('warning', 'Check server url!');
                 end
-                %{
+                %}
+                
                 data=struct('email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
                     'deviceid',char(device));
                 url=string(jTextServerUrl.getText());
                 url=url+"/user/login";
                 uri= URI(url);
-                [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,0);
+                [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
                 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                     java_dialog('warning',status);
                 elseif strcmp(status,'401')==1 || strcmp(status,'Unauthorized')==1
                     java_dialog('warning', 'Login failed. Your email or password is wrong!');
                 else
                     content=response.Body;                      
-                        show(content);
-                        bst_set('Email',jTextEmail.getText());
-                        session = jsondecode(content.Data);
-                        bst_set('SessionId',string(session.sessionid));
-                        bst_set('UrlAdr',jTextServerUrl.getText());
-                        java_dialog('msgbox', 'Log in successfully!');
+                    show(content);
+                    bst_set('Email',jTextEmail.getText());
+                    session = jsondecode(content.Data);
+                    bst_set('SessionId',string(session.sessionid));
+                    bst_set('UrlAdr',jTextServerUrl.getText());
+                    java_dialog('msgbox', 'Log in successfully!');
                 end
-               %}
+               
             end
         end
         %gui_show('Preferences');
