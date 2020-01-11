@@ -2617,6 +2617,8 @@ switch contextName
         if ~isempty(spmDir)
             disp([' - ' tpmSpm]);
         end
+        % Return the preferred location: .brainstorm/defaults/spm/TPM.nii
+        argout1 = tpmUser;
 
 
     case 'UrlAdr'
@@ -2626,8 +2628,6 @@ switch contextName
             argout1=[];
         end
 
-        % Return the preferred location: .brainstorm/defaults/spm/TPM.nii
-        argout1 = tpmUser;
         
     case 'PythonConfig'
         defPref = struct(...

@@ -186,28 +186,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         jButtonQtDir.setFocusable(0);
     jPanelRight.add('br hfill', jPanelMne);
     
-    % ===== RIGHT: MNE-PYTHON =====
-    jPanelMne = gui_river([5 5], [0 15 15 15], 'MNE-Python');
-        % Python executable
-        gui_component('Label', jPanelMne, '', 'Python executable: ', [], [], []);
-        jTextPythonExe   = gui_component('Text', jPanelMne, 'br hfill', '', [], [], []);
-        jButtonPythonExe = gui_component('Button', jPanelMne, [], '...', [], [], @PythonExe_Callback);
-        jButtonPythonExe.setMargin(Insets(2,2,2,2));
-        jButtonPythonExe.setFocusable(0);
-        % System path
-        gui_component('Label', jPanelMne, 'br', 'System PATH for Python (separated with semi-colon): ', [], [], []);
-        jTextPythonPath = gui_component('Text', jPanelMne, 'br hfill', '', [], [], []);
-        jButtonAddPath = gui_component('Button', jPanelMne, [], ' + ', [], [], @AddPath_Callback);
-        jButtonAddPath.setMargin(Insets(2,2,2,2));
-        jButtonAddPath.setFocusable(0);
-        % Qt path
-        gui_component('Label', jPanelMne, 'br', 'Qt platform plugin (QT_QPA_PLATFORM_PLUGIN_PATH): ', [], [], []);
-        jTextQtDir   = gui_component('Text', jPanelMne, 'br hfill', '', [], [], []);
-        jButtonQtDir = gui_component('Button', jPanelMne, [], '...', [], [], @QtDirectory_Callback);
-        jButtonQtDir.setMargin(Insets(2,2,2,2));
-        jButtonQtDir.setFocusable(0);
-    jPanelRight.add('br hfill', jPanelMne);
-    
     % ===== RIGHT: SIGNAL PROCESSING =====
     jPanelProc = gui_river([5 5], [0 15 15 15], 'Processing');
         jCheckUseSigProc = gui_component('CheckBox', jPanelProc, 'br', 'Use Signal Processing Toolbox (Matlab)',    [], '<HTML>If selected, some processes will use the Matlab''s Signal Processing Toolbox functions.<BR>Else, use only the basic Matlab function.', []);
