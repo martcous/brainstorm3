@@ -2618,13 +2618,14 @@ switch contextName
             disp([' - ' tpmSpm]);
         end
 
+
     case 'UrlAdr'
         if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'UrlAdr')&& ~isempty(GlobalData.Preferences.UrlAdr)
             argout1=GlobalData.Preferences.UrlAdr;
         else
             argout1=[];
         end
-                                          
+
         % Return the preferred location: .brainstorm/defaults/spm/TPM.nii
         argout1 = tpmUser;
         
