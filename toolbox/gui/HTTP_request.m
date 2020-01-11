@@ -34,8 +34,10 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
     deviceheader = HeaderField('deviceid',bst_get('DeviceId'));
     streamheader = HeaderField('Content-Type','application/octet-stream');
     protocolheader = HeaderField('protocolid',bst_get('ProtocolId'));
+    headerNone=0;
     switch (header)
         case 'None'
+            headerNone=1;
             header = [acceptField,contentTypeField];
             body=MessageBody(data);
         case 'Default'
@@ -52,12 +54,12 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
             response = {};
             status = "Session unavailable";
             disp("Please log in first!");
+            bst_set('SessionId',[]);
             return 
         end
     end
     
-    disp(bst_get('SessionId'))
-    if isempty(bst_get('SessionId'))
+    if isempty(bst_get('SessionId')) && headerNone~=1
         disp(111)
          response = {};
          status = "Session unavailable";
