@@ -138,32 +138,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         end
     jPanelRight.add('br hfill', jPanelImport);
 
-    % ===== RIGHT: SHARING =====
-    %{
-    jPanelShare = gui_river([5 5], [0 15 15 15], 'Remote Database');
-        if isempty(bst_get('SessionId'))
-            gui_component('Label', jPanelShare, 'br', 'Not connected to a remote database. ', [], [], []);
-            jButtonLogin = gui_component('Button', jPanelShare, [], 'Login', [], [], @(h,ev)bst_call(@gui_show, 'panel_login', 'JavaWindow', 'Login', [], 1, 0, 0));
-            jButtonRegister = gui_component('Button', jPanelShare, [], 'Register', [], [], @(h,ev)bst_call(@gui_show, 'panel_signup', 'JavaWindow', 'Sign Up', [], 1, 0, 0));
-            jButtonLogin.setMargin(Insets(2,2,2,2));
-            jButtonLogin.setFocusable(0);
-            jButtonRegister.setMargin(Insets(2,2,2,2));
-            jButtonRegister.setFocusable(0); 
-        else
-            email=bst_get('Email');
-            labellogin="Logged in as " + string(email);
-            gui_component('Label', jPanelShare, 'br',labellogin , [], [], []);        
-            jButtonLogin = gui_component('Button', jPanelShare, 'br', 'Groups', [], [], @ButtonGroups_Callback);
-            jButtonRegister = gui_component('Button', jPanelShare, [], 'Logout', [], [], @Logout_Callback);
-            jButtonLogin.setMargin(Insets(2,2,2,2));
-            jButtonLogin.setFocusable(0);
-            jButtonRegister.setMargin(Insets(2,2,2,2));
-            jButtonRegister.setFocusable(0); 
-        end
-       
-    jPanelRight.add('br hfill', jPanelShare);
-    %}
-    
+
     % ===== RIGHT: MNE-PYTHON =====
     jPanelMne = gui_river([5 5], [0 15 15 15], 'MNE-Python');
         % Python executable
@@ -195,15 +170,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         jBlockSizeLabel.setToolTipText(blockSizeTooltip);
         jBlockSize.setToolTipText(blockSizeTooltip);
     jPanelRight.add('br hfill', jPanelProc);
-    
-
-    % ===== RIGHT: RESET =====
-    if (GlobalData.Program.GuiLevel == 1)
-        jPanelReset = gui_river([5 5], [0 15 15 15], 'Reset Brainstorm');
-            gui_component('Label',  jPanelReset, [], 'Reset database and options to defaults: ', [], [], []);
-            gui_component('Button', jPanelReset, [], 'Reset', [], [], @ButtonReset_Callback);
-        jPanelRight.add('br hfill', jPanelReset);
-    end
     
     % ===== RIGHT: REMOTE DATABASE =====
     jPanelReset = gui_river([5 5], [0 15 15 15], 'Remote Database');
