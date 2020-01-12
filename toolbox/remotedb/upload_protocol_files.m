@@ -1,4 +1,4 @@
-function [output] = upload_protocol_files()
+function upload_protocol_files()
 % Create: create a functional file in remote database
 
 % @=============================================================================
@@ -21,6 +21,7 @@ function [output] = upload_protocol_files()
 %
 % Authors: Chaoyi Liu 2020
 
+create_protocol();
 protocol_id = bst_get('ProtocolId');
 local_subjects = bst_get('ProtocolSubjects');
 create_subject(protocol_id,local_subjects.DefaultSubject,0);
@@ -58,8 +59,9 @@ if(~isfield(sStudy,'RemoteID') || isempty(sStudy.RemoteID))
     sStudy.RemoteID = data.id;
     %save study id in local db
     bst_set('RemoteStudy', iStudy, data.id);
+else
+    disp("study " + sStudy.FileName + " already on cloud");
 end
-
 end 
 
 function [sSubject] = create_subject(protocol_id,sSubject,iSubject)
@@ -82,6 +84,8 @@ if(~isfield(sSubject,'RemoteID') || isempty(sSubject.RemoteID))
     sSubject.RemoteID = data.id;
     %save subject id in local db
     bst_set('RemoteSubject', iSubject, data.id);
+else 
+    disp("subject " + sSubject.FileName + " already on cloud");
 end
 end
 

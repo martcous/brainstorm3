@@ -1,5 +1,5 @@
-function [counter] = upload(filelocation)
-% Upload: Upload different files
+function [counter] = upload_file(filelocation,uploadid)
+% Upload: Upload file function
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
@@ -19,7 +19,7 @@ function [counter] = upload(filelocation)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Zeyu Chen, Chaoyi Liu 2019
+% Authors: Chaoyi Liu 2020
 
 %uploadid = "4deb53de-b4c0-4d1b-9f9d-3b448bb158ba";
 
@@ -45,9 +45,6 @@ if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
 end
 fclose(fileID);
 disp(counter);
-
-
-
 
 
 end

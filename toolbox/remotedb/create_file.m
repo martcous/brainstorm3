@@ -1,4 +1,4 @@
-function [uploadid] = create_functionalfile(filetype)
+function [uploadid] = create_file(filetype)
 % Create: create a functional file in remote database
 
 % @=============================================================================
@@ -21,7 +21,7 @@ function [uploadid] = create_functionalfile(filetype)
 %
 % Authors: Chaoyi Liu 2020
 
-url = strcat(string(bst_get('UrlAdr')),"/FunctionalFile/");
+url = strcat(string(bst_get('UrlAdr')),"/");
 switch(filetype)
     case 'channel'
         url = strcat(url,"createChannel");
@@ -55,4 +55,30 @@ end
 uploadid = jsondecode(response.Body.Data);
 uploadid = uploadid.result;
 
+end
+
+
+function [result] = num2bool(number)
+    if(number == 1)
+        result = true;
+    else 
+        result = false;
+    end    
+end
+
+
+function [result] = empty2zero(val)
+    if(isempty(val))
+        result = 0;
+    else 
+        result = val;
+    end    
+end
+
+function [result] = empty2string(val)
+    if(isempty(val))
+        result = "";
+    else 
+        result = val;
+    end    
 end

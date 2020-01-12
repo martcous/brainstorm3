@@ -2672,10 +2672,11 @@ switch contextName
         end
         
      case 'ProtocolId'
-        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'ProtocolId')&& ~isempty(GlobalData.Preferences.ProtocolId)
-            argout1=GlobalData.Preferences.ProtocolId;
-        else
+        sProtocolInfo = bst_get('ProtocolInfo');
+        if(~isfield(sProtocolInfo,'RemoteID'))
             argout1=[];
+        else
+            argout1=sProtocolInfo.RemoteID;
         end
     case 'ElectrodeConfig'
         % Get modality

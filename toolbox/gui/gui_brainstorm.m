@@ -126,7 +126,7 @@ function GUI = CreateWindow() %#ok<DEFNU>
         jSubMenu = gui_component('Menu', jMenuFile, [], 'Synchronize protocol', IconLoader.ICON_FOLDER_OPEN,[],[], fontSize);
         gui_component('MenuItem', jSubMenu, [], 'Manage protocol access',IconLoader.ICON_PROCESS, [], @(h,ev)bst_call(@gui_show, 'panel_share_protocol', 'JavaWindow', 'Share Protocol', [], 1, 0, 0), fontSize);
         gui_component('MenuItem', jSubMenu, [], 'Load protocol from server', IconLoader.ICON_PROCESS, [], @(h,ev)bst_call(@gui_edit_protocol, 'remote'), fontSize);
-        gui_component('MenuItem', jSubMenu, [], 'Synchronize the protocol with cloud', IconLoader.ICON_SAVE, [], @(h,ev)bst_call(@panel_sync), fontSize);
+        gui_component('MenuItem', jSubMenu, [], 'Synchronize the protocol with cloud', IconLoader.ICON_SAVE, [], @(h,ev)bst_call(@upload_protocol_files), fontSize);
 
         % === NEW SUBJECT ===
         gui_component('MenuItem', jMenuFile, [], 'New subject', IconLoader.ICON_SUBJECT_NEW, [], @(h,ev)bst_call(@db_edit_subject), fontSize);

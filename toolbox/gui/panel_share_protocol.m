@@ -75,7 +75,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     jPanelMembers.add('br hfill', jPanelMemberButtons);
 
     % ===== LOAD DATA =====
-    ShareProtocol();
+    create_protocol();
     if isempty(bst_get('SessionId'))
         panelName = [];
         bstPanelNew=[];
@@ -531,50 +531,6 @@ function member = ExtractName(member)
     if ~isempty(iPermission) && iPermission > 2
         member = member(1:iPermission(end)-1);
     end
-end
-
-%% ===== Update protocol on cloud =====
-function ShareProtocol()
-    sProtocol = bst_get('ProtocolInfo');
-    if isempty(bst_get('ProtocolId'))
-        pid = " ";
-    else 
-        pid = convertCharsToStrings(bst_get('ProtocolId'));
-    end
-
-    
-    if (sProtocol.UseDefaultAnat == 0) 
-        uda = false;
-    else
-        uda = true;
-    end
-    if (sProtocol.UseDefaultChannel == 0) 
-        udc = false;
-    else
-        udc = true;
-    end  
-    data = struct('Id',pid,'Name',sProtocol.Comment, 'Isprivate', false, ...
-            'Comment',sProtocol.Comment, 'Istudy', size(sProtocol.iStudy,1), ...
-            'Usedefaultanat',uda, 'Usedefaultchannel',udc);
-
-    serveradr = string(bst_get('UrlAdr'));
-    url=strcat(serveradr,"/protocol/share");
-    [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
-    if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        if strcmp(status,'404')==1 || strcmp(response,'NotFound')==1
-            java_dialog('error','Current protocol has not been uploaded!');
-        else
-            java_dialog('warning',status);
-            return;
-        end
-    else
-        newid=response.Body.Data;
-        newid=extractBetween(newid,8,strlength(newid)-2);
-        disp(newid);
-        bst_set('ProtocolId',newid);          
-        disp('create/get protocol successfully');        
-    end
-
 end
 
 %% ===== Load protocol groups =====

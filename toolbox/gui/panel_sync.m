@@ -1,5 +1,6 @@
 function panel_sync()
 
+%{
 %check whether protocal exists in remote database
 protocolid = bst_get('ProtocolId');
 url = strcat(string(bst_get('UrlAdr')),"/protocol/get");
@@ -16,7 +17,10 @@ if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
 else
     disp('Start Sync!');
 end
+%}
+disp("test function");
 
+%{
 %download
 filename = "300mb.zip";
 blocksize = 10000000; %10mb
@@ -45,7 +49,7 @@ end
 bst_progress('stop');
 fclose(fileID);
 disp("finish download!");
-
+%}
 
 %{
 bst_set('ProtocolId',"341e0d29-c678-4e87-bb28-f0dc3042a826");
