@@ -60,7 +60,6 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
     end
     
     if isempty(bst_get('SessionId')) && headerNone~=1
-        disp(111)
          response = {};
          status = "Session unavailable";
          disp("Please log in first!");
@@ -68,17 +67,19 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
     end
     
     if strcmp(method,"POST")==1
-        method =RequestMethod.POST;    
+        method =RequestMethod.POST;   
+        r=RequestMessage(method,header,body);
     elseif  strcmp(method,"GET")==1
         method =RequestMethod.GET;
+        r=RequestMessage(method,header);
     else
         java_dialog('warning',"wrong method");
         return;
     end
-    r=RequestMessage(method,header,body);
     %Debug uncomment below
     %show(r);
     disp(url);
+    disp(data);
     uri= URI(url); 
     try
         [resp,~,hist]=send(r,uri);

@@ -559,10 +559,9 @@ function ShareProtocol()
 
     serveradr = string(bst_get('UrlAdr'));
     url=strcat(serveradr,"/protocol/share");
-    disp(url);
     [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        if strcmp(status,'404')==1 | strcmp(response,'NotFound')==1
+        if strcmp(status,'404')==1 || strcmp(response,'NotFound')==1
             java_dialog('error','Current protocol has not been uploaded!');
         else
             java_dialog('warning',status);
@@ -572,20 +571,8 @@ function ShareProtocol()
         newid=response.Body.Data;
         newid=extractBetween(newid,8,strlength(newid)-2);
         disp(newid);
-        if isempty(bst_get('ProtocolId'))
-            bst_set('ProtocolId',newid);
-            disp('store protocolId successfully');
-        end
-        disp('create protocal successfully');
-        
-        %{
-        content=resp.Body;
-        show(content);
-        protocolid = jsondecode(content.Data);
-        bst_set('ProtocolId',string(protocolid.id));        
-        %java_dialog('msgbox', 'Protocol uploaded!');
-        disp('Protocol uploaded!');
-        %}
+        bst_set('ProtocolId',newid);          
+        disp('create/get protocol successfully');        
     end
 
 end
@@ -594,45 +581,24 @@ end
 function [groups, permissions] = LoadProtocolGroups()
 groups = cell(0);
 permissions = cell(0);
-import matlab.net.*;
-import matlab.net.http.*;
-type1 = MediaType('text/*');
-type2 = MediaType('application/json','q','.5');
-acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-h1 = HeaderField('Content-Type','application/json');
-h2 = HeaderField('sessionid',bst_get('SessionId'));
-h3 = HeaderField('deviceid',bst_get('DeviceId'));
-header = [acceptField,h1,h2,h3];
-method = RequestMethod.GET;
-request_message = RequestMessage(method,header,[]);
-%show(request_message);
 serveradr = string(bst_get('UrlAdr'));
 protocol = convertCharsToStrings(bst_get('ProtocolId'));
 url=strcat(serveradr,"/protocol/groups/",protocol);
-disp(url);
 try
-    [resp,~,hist]=send(request_message,URI(url));
-    status = resp.StatusCode;
-    txt=char(status);
-    if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-        content=resp.Body;
-        show(content)
-        responseData = jsondecode(content.Data);
-        if(size(responseData) > 0)
-            groups = cell(size(responseData));
-            permissions = cell(size(responseData));
-            for i = 1 : size(responseData)
-                groups{i} = responseData(i).name;
-                permissions{i} = responseData(i).access;
-            end
+    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
+    content=response.Body;
+    show(content)
+    responseData = jsondecode(content.Data);
+    if(size(responseData) > 0)
+        groups = cell(size(responseData));
+        permissions = cell(size(responseData));
+        for i = 1 : size(responseData)
+            groups{i} = responseData(i).name;
+            permissions{i} = responseData(i).access;
         end
-        %java_dialog('msgbox', 'Load protocol groups successfully!');
-        disp('Load protocol groups successfully!');
-    elseif strcmp(status,'404')==1 || strcmp(txt,'NotFound')==1
-        java_dialog('error','Current protocol has not been uploaded!');
-    else
-        java_dialog('error', txt);
     end
+    disp('Load protocol groups successfully!');
+    
 catch
     java_dialog('warning', 'Load group failed!');
 end
@@ -642,28 +608,14 @@ end
 function [members, permissions] = LoadProtocolMembers()
 members = cell(0);
 permissions = cell(0);
-import matlab.net.*;
-import matlab.net.http.*;
-type1 = MediaType('text/*');
-type2 = MediaType('application/json','q','.5');
-acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-h1 = HeaderField('Content-Type','application/json');
-h2 = HeaderField('sessionid',bst_get('SessionId'));
-h3 = HeaderField('deviceid',bst_get('DeviceId'));
-header = [acceptField,h1,h2,h3];
-method = RequestMethod.GET;
-request_message = RequestMessage(method,header,[]);
-%show(request_message);
 serveradr = string(bst_get('UrlAdr'));
 protocol = convertCharsToStrings(bst_get('ProtocolId'));
 url=strcat(serveradr,"/protocol/members/",protocol);
-disp(url);
 try
-    [resp,~,hist]=send(request_message,URI(url));
-    status = resp.StatusCode;
+    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
     txt=char(status);
     if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-        content=resp.Body;
+        content=response.Body;
         show(content)
         responseData = jsondecode(content.Data);
         if(size(responseData) > 0)
@@ -690,27 +642,14 @@ end
 %% ===== Load groups that can be added to the protocol =====
 function available_groups = LoadAvailableGroups()
 available_groups = cell(0);
-import matlab.net.*;
-import matlab.net.http.*;
-type1 = MediaType('text/*');
-type2 = MediaType('application/json','q','.5');
-acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-h1 = HeaderField('Content-Type','application/json');
-h2 = HeaderField('sessionid',bst_get('SessionId'));
-h3 = HeaderField('deviceid',bst_get('DeviceId'));
-header = [acceptField,h1,h2,h3];
-method = RequestMethod.GET;
-request_message = RequestMessage(method,header,[]);
 serveradr = string(bst_get('UrlAdr'));
 protocol = convertCharsToStrings(bst_get('ProtocolId'));
 url=strcat(serveradr,"/protocol/availablegroups/",protocol);
-disp(url);
 try
-    [resp,~,hist]=send(request_message,URI(url));
-    status = resp.StatusCode;
+    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
     txt=char(status);
     if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-        content=resp.Body;
+        content=response.Body;
         show(content)
         responseData = jsondecode(content.Data);
         if(size(responseData) > 0)

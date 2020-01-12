@@ -1,16 +1,15 @@
-function [sessionon] = Checksession()
-% HTTP_REQUEST: POST,GET request to construct interaction between front end
-% and back end.
+function [uploadid] = create_functionalfile(filetype)
+% Create: create a functional file in remote database
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % https://neuroimage.usc.edu/brainstorm
-% 
+%
 % Copyright (c)2000-2019 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
-% 
+%
 % FOR RESEARCH PURPOSES ONLY. THE SOFTWARE IS PROVIDED "AS IS," AND THE
 % UNIVERSITY OF SOUTHERN CALIFORNIA AND ITS COLLABORATORS DO NOT MAKE ANY
 % WARRANTY, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
@@ -20,20 +19,40 @@ function [sessionon] = Checksession()
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Zeyu Chen, Chaoyi Liu 2019
+% Authors: Chaoyi Liu 2020
 
-url = strcat(string(bst_get('UrlAdr')),"/user/checksession");
-data=struct("deviceid", bst_get('DeviceId'), "sessionid", bst_get('SessionId'));
-[response,status] = bst_call(@HTTP_request,'POST','Default',data,url,0);
-if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    %java_dialog('warning',status);
-    sessionon=0;
-    disp('session expired');
-else
-    sessionon=1;
-    disp('session on');
+url = strcat(string(bst_get('UrlAdr')),"/FunctionalFile/");
+switch(filetype)
+    case 'channel'
+        url = strcat(url,"createChannel");
+        %todo: body
+        body = struct();
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
+    case 'timefreq'
+        disp("todo");
+    case 'stat'
+        disp("todo");
+    case 'headmodel'
+        disp("todo");
+    case 'result'
+        disp("todo");
+    case 'recording'
+        disp("todo");
+    case 'matrix'
+        disp("todo");
+    case 'dipole'
+        disp("todo");
+    case 'covariance'
+        disp("todo");
+    case 'image'
+        disp("todo");
 end
 
+if strcmp(status,'OK')~=1
+    java_dialog('warning',status);
+    return;
+end
+uploadid = jsondecode(response.Body.Data);
+uploadid = uploadid.result;
 
 end
-

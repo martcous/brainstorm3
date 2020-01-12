@@ -22,6 +22,7 @@ function bst_set( varargin )
 %    - bst_set('ProtocolStudies',   ProtocolStudies)
 %    - bst_set('Study',   iStudy,   sStudy)    : Set a study in current protocol 
 %    - bst_set('Subject', iSubject, sSubject)  : Set a subject in current protocol
+%    - bst_set('RemoteSubject', iSubject, ID)  : Add a remote id to local subject in current protocol
 %
 % ====== GUI =================================================================
 %    - bst_set('Layout',    sLayout)
@@ -165,7 +166,19 @@ switch contextName
         end
         % Update DataBase
         bst_set('ProtocolSubjects', ProtocolSubjects);
-        
+    case 'RemoteSubject' 
+        % Get subjects list
+        ProtocolSubjects = bst_get('ProtocolSubjects');
+        iSubject = varargin{2};
+        ID = varargin{3};
+        % If default subject
+        if (iSubject == 0)
+            ProtocolSubjects.DefaultSubject.RemoteID = ID;
+        else
+            ProtocolSubjects.Subject(iSubject).RemoteID = ID;
+        end
+        % Update DataBase
+        bst_set('ProtocolSubjects', ProtocolSubjects);
         
 %% ==== STUDY ====
     case 'Study'
@@ -185,6 +198,28 @@ switch contextName
             % Default study
             elseif (iStudies(i) == iDefaultStudy)
                 ProtocolStudies.DefaultStudy = sStudies(i);
+            end
+        end
+        % Update DataBase
+        bst_set('ProtocolStudies', ProtocolStudies);
+        
+    case 'RemoteStudy'
+        % Get studies list
+        ProtocolStudies = bst_get('ProtocolStudies');
+        iStudies = varargin{2};
+        ID = varargin{3};
+        iAnalysisStudy = -2;
+        iDefaultStudy  = -3;
+        for i = 1:length(iStudies)
+            % Normal study
+            if (iStudies(i) > 0)
+                ProtocolStudies.Study(iStudies(i)).RemoteID = ID;
+            % Inter-subject analysis study
+            elseif (iStudies(i) == iAnalysisStudy)
+                ProtocolStudies.AnalysisStudy.RemoteID = ID;
+            % Default study
+            elseif (iStudies(i) == iDefaultStudy)
+                ProtocolStudies.DefaultStudy.RemoteID = ID;
             end
         end
         % Update DataBase
