@@ -81,9 +81,9 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     jPanelNew.add('br hfill', jPanelButtons);
 
     % ===== LOAD DATA =====
-    UpdateGroupsList();
-    UpdateMembersList();
-
+    if UpdateGroupsList()==1        
+        UpdateMembersList();
+    end
     % ===== CREATE PANEL =====   
     bstPanelNew = BstPanel(panelName, ...
                            jPanelNew, ...
@@ -404,10 +404,12 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         url=strcat(serveradr,"/user/listgroups");
         gui_hide('Preferences');
         [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+        disp(strcmp(status,"Session unavailable"));
         if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
             java_dialog('warning',status);
-        elseif strcmp(status,'Session unavailable')==1
-            disp('sesss')
+            if strcmp(status,"Session unavailable")==1
+                gui_show('panel_options', 'JavaWindow', 'Brainstorm preferences', [], 1, 0, 0);
+            end
         else
             content=response.Body;                      
             show(content);
@@ -419,8 +421,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                 end
             end
             disp('Load user groups successfully!');
-        end
-        disp("pass");
+        end   
         %groups = {'NeuroSPEED', 'OMEGA', 'Ste-Justine Project'};
     end
     %% ===== LOAD MEMBERS =====
@@ -504,7 +505,8 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
         if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
             java_dialog('warning',status);
-        elseif strcmp(status,'Session unavailable')==1
+        elseif strcmp(status,"Session unavailable")==1
+            disp(111)
             gui_show('Preferences')
         else
             content=response.Body;                      

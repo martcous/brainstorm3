@@ -30,8 +30,15 @@ if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     sessionon=0;
     disp('session expired');
 else
-    sessionon=1;
-    disp('session on');
+    
+    disp(response.Body.Data);
+    if strcmp(char(response.Body.Data),'false')==1
+        sessionon=0;      
+    else
+        sessionon=1;
+        disp('session on');
+    end
+
 end
 
 
