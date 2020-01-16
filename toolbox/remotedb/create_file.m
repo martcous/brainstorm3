@@ -1,4 +1,4 @@
-function [uploadid] = create_file(filetype,fileName)
+function [uploadid] = create_file(fileName)
 % Create: create a functional file in remote database
 % Currently work on intial commit.
 
@@ -22,6 +22,7 @@ function [uploadid] = create_file(filetype,fileName)
 %
 % Authors: Chaoyi Liu, Zeyu Chen 2020
 
+filetype=file_gettype( fileName );
 url = strcat(string(bst_get('UrlAdr')),"/");
 studyID=bst_get("Study");
 ChannelFile=bst_get('ChannelForStudy',studyID);
@@ -125,6 +126,14 @@ uploadid = uploadid.result;
 
 end
 
+
+function [attribute]=findattribute(attribute)
+    if ~isempty(sItem.attribute)
+        attribute=sItem.attribute;
+    else
+        attribute="";
+    end
+end
 
 function [result] = num2bool(number)
     if(number == 1)
