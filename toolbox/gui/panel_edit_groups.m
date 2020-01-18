@@ -81,9 +81,9 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     jPanelNew.add('br hfill', jPanelButtons);
 
     % ===== LOAD DATA =====
-    if UpdateGroupsList()==1        
-        UpdateMembersList();
-    end
+    UpdateGroupsList();        
+    UpdateMembersList();
+    
     % ===== CREATE PANEL =====   
     bstPanelNew = BstPanel(panelName, ...
                            jPanelNew, ...
