@@ -41,8 +41,9 @@ end
 end
 
 function [sStudy] = create_study(protocol_id,sStudy, iStudy)
+overwrite = 0;
 % if missing RemoteID, create new study on remote
-if(~isfield(sStudy,'RemoteID') || isempty(sStudy.RemoteID))
+if(~isfield(sStudy,'RemoteID') || isempty(sStudy.RemoteID) || overwrite == 1)
     url=strcat(string(bst_get('UrlAdr')),"/study/create");
     %find its subject
     [sSubject] = bst_get('Subject', sStudy.BrainStormSubject);
@@ -65,8 +66,9 @@ end
 end 
 
 function [sSubject] = create_subject(protocol_id,sSubject,iSubject)
+overwrite = 0;
 % if missing RemoteID, create new subject on remote
-if(~isfield(sSubject,'RemoteID') || isempty(sSubject.RemoteID))
+if(~isfield(sSubject,'RemoteID') || isempty(sSubject.RemoteID) || overwrite == 1)
     url=strcat(string(bst_get('UrlAdr')),"/subject/create");
     body=struct("comment",sSubject.Comments, "filename", sSubject.FileName,...
         "name",sSubject.Name, "useDefaultAnat",num2bool(sSubject.UseDefaultAnat),...

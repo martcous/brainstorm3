@@ -21,14 +21,17 @@ function [output] = create_protocol()
 %
 % Authors: Chaoyi Liu 2020
 
+
 if isempty(bst_get('ProtocolId'))
     pid = " ";
 else
     pid = convertCharsToStrings(bst_get('ProtocolId'));
-    disp("Protocol already on remote!");
+    disp("ProtocolID exist on local! Still check on remote. ");
     disp(pid);
-    return;
+    %return;
 end
+
+
 
 sProtocol = bst_get('ProtocolInfo');
 data = struct('Id',pid,'Name',sProtocol.Comment, 'Isprivate', false, ...

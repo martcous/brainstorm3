@@ -79,7 +79,7 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
     %Debug uncomment below
     %show(r);
     disp(url);
-    disp(data);
+    %disp(data);
     uri= URI(url); 
     try
         [resp,~,hist]=send(r,uri);

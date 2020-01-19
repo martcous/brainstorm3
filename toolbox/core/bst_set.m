@@ -21,6 +21,8 @@ function bst_set( varargin )
 %    - bst_set('isProtocolModified',isProtocolModified)
 %    - bst_set('ProtocolStudies',   ProtocolStudies)
 %    - bst_set('Study',   iStudy,   sStudy)    : Set a study in current protocol 
+%    - bst_set('RemoteStudy', iStudy, ID)  : Add a remote id to local study in current protocol
+%    - bst_set('RemoteStudyFile', iStudy, filecategory, filename, ID) :Add a remote id to a functional file of local study in current protocol
 %    - bst_set('Subject', iSubject, sSubject)  : Set a subject in current protocol
 %    - bst_set('RemoteSubject', iSubject, ID)  : Add a remote id to local subject in current protocol
 %
@@ -224,7 +226,62 @@ switch contextName
         end
         % Update DataBase
         bst_set('ProtocolStudies', ProtocolStudies);
+      
+    case 'RemoteStudyFile'
+        %bst_set('RemoteStudyFile', iStudy, filecategory, filename, ID)
+        % Get studies list
+        ProtocolStudies = bst_get('ProtocolStudies');
+        iStudies = varargin{2};
+        iAnalysisStudy = -2;
+        iDefaultStudy  = -3;
+        for i = 1:length(iStudies)
+            % Normal study
+            if (iStudies(i) > 0)
+                thisstudy = ProtocolStudies.Study(iStudies(i));
+            % Inter-subject analysis study
+            elseif (iStudies(i) == iAnalysisStudy)
+                thisstudy = ProtocolStudies.AnalysisStudy;
+            % Default study
+            elseif (iStudies(i) == iDefaultStudy)
+                thisstudy = ProtocolStudies.DefaultStudy;
+            end
+        end
+        filecategory = varargin{3};
+        filename = varargin{4};
+        ID = varargin{5};
+        if(~isfield(thisstudy,filecategory))
+            warning("File category is not valid!");
+            return;
+        end
+        category_list = thisstudy.(filecategory);
+        iItem = [];
+        for i = 1:size(category_list,2)
+            if(strcmp(category_list(i).FileName,filename)==1)
+                iItem = i;
+                break;
+            end
+        end
         
+        if(isempty(iItem))
+            warning("File name doesn't exist!");
+            return;
+        end
+        
+        for i = 1:length(iStudies)
+            % Normal study
+            if (iStudies(i) > 0)
+                ProtocolStudies.Study(iStudies(i)).(filecategory)(iItem).RemoteID = ID;
+            % Inter-subject analysis study
+            elseif (iStudies(i) == iAnalysisStudy)
+                ProtocolStudies.AnalysisStudy.(filecategory)(iItem).RemoteID = ID;
+            % Default study
+            elseif (iStudies(i) == iDefaultStudy)
+                ProtocolStudies.DefaultStudy.(filecategory)(iItem).RemoteID = ID;
+            end
+        end
+        
+        % Update DataBase
+        bst_set('ProtocolStudies', ProtocolStudies);
         
 %% ==== GUI ====
     % USAGE: bst_set('Layout', sLayout)

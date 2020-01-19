@@ -31,14 +31,14 @@ url=strcat(string(bst_get('UrlAdr')),"/file/upload/", uploadid, "/");
 while ~feof(fileID)
     blockcontent = fread(fileID,blocksize,'*uint8');
     counter = counter + 1;
-    [response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"false");
+    [response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"false",1);
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         java_dialog('warning',status);
         return;
     end
 end
 
-[response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"true");
+[response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"true",1);
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     java_dialog('warning',status);
     return;
