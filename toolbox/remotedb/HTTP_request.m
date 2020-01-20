@@ -77,8 +77,7 @@ function [response, status] = HTTP_request(method,header,data,url,checksession)
         return;
     end
     %Debug uncomment below
-    %show(r);
-    disp(url);
+    %disp(url);
     %disp(data);
     uri= URI(url); 
     try

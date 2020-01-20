@@ -1,4 +1,4 @@
-function [uploadid] = create_file(fileName, filetype, MD5)
+function [uploadid,status] = create_file(fileName, filetype, MD5,overwrite)
 % Create: create a functional file in remote database
 % Currently work on intial commit.
 
@@ -23,9 +23,14 @@ function [uploadid] = create_file(fileName, filetype, MD5)
 % Authors: Chaoyi Liu, Zeyu Chen 2020
 
 url = strcat(string(bst_get('UrlAdr')),"/");
+uploadid = [];
 [sStudy, iStudy, iItem, DataType, sItem] = bst_get('AnyFile', fileName);
+if(isfield(sItem,'RemoteID') && ~isempty(sItem.RemoteID) && overwrite==0)
+    status = "success";
+    disp(sItem.FileName+" already on remote!");
+    return;
+end
 studyID=sStudy.RemoteID;
-fieldname =[];
 switch(filetype)
     case 'channel'
         url = strcat(url,"createChannel");
@@ -33,8 +38,7 @@ switch(filetype)
           'transfEegLabels',empty2string(findattribute(sItem,"transfEegLabels")),...
           'comment', empty2string(findattribute(sItem,"Comment")),'fileName', sItem.FileName,...
           'fileType',1, 'md5', string(MD5),'studyID', studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
-        fieldname = 'Channel';
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
     case 'timefreq'
         url = strcat(url,"createTimeFreq");
         body = struct("measure", empty2string(findattribute(sItem,"measure")),"method", empty2string(findattribute(sItem,"method")),...
@@ -42,19 +46,14 @@ switch(filetype)
           "displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
           "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
           "fileType", 2, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1); 
-        fieldname = 'Timefreq';
-    % In the test protocol, the stat file type is recognized as pdata    
-    case 'pdata'
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0); 
+    case {'presults', 'pdata','ptimefreq','pmatrix'}
         url = strcat(url,"createStat");
         body = struct("df",0,"correction",true,...
-            "type", filetype,"id",empty2string(findattribute(sItem,"id")),...
+            "type", filetype,...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
-            "fileType", 3,"histories", [struct('timeStamp', datestr(datevec(now),'yyyy-mm-ddTHH:MM:SS.FFFZ'),...
-              'historyEvent',"None")],...
-            "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
-        fieldname = 'Stat';
+            "fileType", 3, "md5", string(MD5),"studyID", studyID);
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
     case 'headmodel'
         url = strcat(url,"createHeadModel");
         body = struct("type", empty2string(findattribute(sItem,"type")),"megMethod", empty2string(findattribute(sItem,"megMethod")),...
@@ -62,8 +61,7 @@ switch(filetype)
             "seegMethod", empty2string(findattribute(sItem,"seegMethod")),...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 4, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
-        fieldname = 'HeadModel';
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
     case 'results'
         url = strcat(url,"createResult");
         body = struct("isLink", true,"nComponents", empty2zero(findattribute(sItem,"nComponents")),...
@@ -71,28 +69,27 @@ switch(filetype)
             "colormapType", empty2string(findattribute(sItem,"colormapType")),"displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 5, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
-        fieldname = 'Result';
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
     case 'matrix'
         url = strcat(url,"createMatrix");
         body = struct("nAvg", 0,"displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
             "comment",empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 6, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
-        fieldname = 'Matrix';
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
     otherwise
         url = strcat(url,"createOther");
         body = struct("comment",empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 7, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,1);
+        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
 end
 if strcmp(status,'OK')~=1
-    java_dialog('warning',status);
+    %java_dialog('warning',status);
     return;
 end
 data = jsondecode(response.Body.Data);
 uploadid = data.uploadid;
-bst_set('RemoteStudyFile', iStudy, fieldname, sItem.FileName, data.ffid);
+bst_set('RemoteFileID', sItem.FileName, iStudy, data.fid)
+status = "success";
 end
 
 
@@ -105,13 +102,6 @@ function [attribute]=findattribute(sItem,attribute)
     end
 end
 
-function [result] = num2bool(number)
-    if(number == 1)
-        result = true;
-    else 
-        result = false;
-    end    
-end
 
 
 function [result] = empty2zero(val)

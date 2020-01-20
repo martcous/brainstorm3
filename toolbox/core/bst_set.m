@@ -282,6 +282,109 @@ switch contextName
         
         % Update DataBase
         bst_set('ProtocolStudies', ProtocolStudies);
+   
+        
+    %% ==== ANY FILE ====
+    % Usage: bst_set('RemoteFileID', FileName, iStudies, ID)
+    case 'RemoteFileID'
+        % Input #2: FileName
+        FileName = varargin{2};
+        if isempty(FileName)
+            return
+        end
+        % Input #3: iStudies
+        iStudies = varargin{3};
+        if isempty(iStudies)
+            return
+        end
+        
+        ID = varargin{4};
+        % Get data format
+        fileType = file_gettype(FileName);
+        if isempty(fileType)
+            error('File type is not recognized.');
+        end
+        sItem = [];
+        % Get information related with this file
+        switch (fileType)
+            % ===== FUNCTIONAL =====
+            case 'channel'
+                [sStudy, iStudy] = bst_get('ChannelFile', FileName);
+                iItem = 1;
+                filecategory = "Channel";               
+            case 'headmodel'
+                [sStudy, iStudy, iItem] = bst_get('HeadModelFile', FileName);
+                filecategory = "HeadModel";              
+            case 'noisecov'
+                [sStudy, iStudy, iItem] = bst_get('NoiseCovFile', FileName);
+                filecategory = "NoiseCov";              
+            case 'ndatacov'
+                [sStudy, iStudy, iItem] = bst_get('DataCovFile', FileName);
+                filecategory = "NoiseCov";               
+            case 'data'
+                [sStudy, iStudy, iItem] = bst_get('DataFile', FileName, iStudies);
+                filecategory = "Data";              
+            case {'results', 'link'}
+                [sStudy, iStudy, iItem] = bst_get('ResultsFile', FileName, iStudies);
+                filecategory = "Result";
+ 
+            case {'presults', 'pdata','ptimefreq','pmatrix'}
+                [sStudy, iStudy, iItem] = bst_get('StatFile', FileName, iStudies);
+                filecategory = "Stat"; 
+                
+            case 'dipoles'
+                [sStudy, iStudy, iItem] = bst_get('DipolesFile', FileName, iStudies);
+                filecategory = "Dipoles";
+                
+            case 'timefreq'
+                % Remove optional RefRowName
+                iPipe = find(FileName == '|', 1);
+                if ~isempty(iPipe)
+                    FileName = FileName(1:iPipe-1);
+                end
+                [sStudy, iStudy, iItem] = bst_get('TimefreqFile', FileName, iStudies);
+                filecategory = "Timefreq";
+                
+            case 'matrix'
+                [sStudy, iStudy, iItem] = bst_get('MatrixFile', FileName, iStudies);
+                filecategory = "Matrix";
+                
+            case {'image', 'video', 'videolink'}
+                [sStudy, iStudy, iItem] = bst_get('ImageFile', FileName, iStudies);
+                filecategory = "Image";
+       %{         
+                % ===== ANATOMY =====
+            case {'cortex','scalp','innerskull','outerskull','tess','fibers','fem'}
+                [sStudy, iStudy, iItem] = bst_get('SurfaceFile', FileName);
+                filecategory = "Surface";
+               
+            case 'subjectimage'
+                [sStudy, iStudy, iItem] = bst_get('MriFile', FileName);
+                filecategory = "Anatomy";
+         %}          
+            otherwise
+                error('File type is not recognized.');
+        end
+        
+        ProtocolStudies = bst_get('ProtocolStudies');
+        iAnalysisStudy = -2;
+        iDefaultStudy  = -3;
+        for i = 1:length(iStudies)
+            % Normal study
+            if (iStudies(i) > 0)
+                ProtocolStudies.Study(iStudies(i)).(filecategory)(iItem).RemoteID = ID;
+            % Inter-subject analysis study
+            elseif (iStudies(i) == iAnalysisStudy)
+                ProtocolStudies.AnalysisStudy.(filecategory)(iItem).RemoteID = ID;
+            % Default study
+            elseif (iStudies(i) == iDefaultStudy)
+                ProtocolStudies.DefaultStudy.(filecategory)(iItem).RemoteID = ID;
+            end
+        end
+        
+        % Update DataBase
+        bst_set('ProtocolStudies', ProtocolStudies);
+
         
 %% ==== GUI ====
     % USAGE: bst_set('Layout', sLayout)

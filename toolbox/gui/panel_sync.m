@@ -1,64 +1,8 @@
 function panel_sync()
 
 
-protocolname = bst_get('ProtocolInfo');
-protocolname = protocolname.Comment;
-functional_file_folder = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
-filelist = dir(fullfile(functional_file_folder, '**/*.*'));
-for i= 1:size(filelist)
-    if(filelist(i).isdir == 0)
-        filename = char(strcat(filelist(i).folder,"/",filelist(i).name));
-        type = file_gettype(filename);
-        if(strcmp(type, 'unknown') == 1 || strcmp(type, 'brainstormstudy') == 1)
-            continue;
-        end
-        if(strcmp(type, 'channel') == 1)
-            disp("===========     "+type+"    ===============");
-            disp(filename);
-            MD5=getChecksum(filename);
-            uploadid = create_file(filename,type,MD5);
-            counter = upload_file(filename,uploadid);
-            disp(counter);
-        end
-    end
-end
-
-function result = getChecksum(filename)
-    fileID = fopen(filename,'r');
-    content = fread(fileID,'*uint8');
-    result = DataHash(content);
-end
 
 
-%{
-ProtocolStudies = bst_get('ProtocolStudies');
-mylist = ProtocolStudies.Study(4).Data;
-for i = 1:size(mylist,2)
-    disp(mylist(i));
-end
-%}
-
-
-%'Subject01/S01_AEF_20131218_01_600Hz/data_standard_trial001.mat')
-
-%{
-%check whether protocal exists in remote database
-protocolid = bst_get('ProtocolId');
-url = strcat(string(bst_get('UrlAdr')),"/protocol/get");
-url = strcat(url,string(protocolid));
-data=[];
-[response,status] = bst_call(@HTTP_request,'GET','Default',data,url,1);
-if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    if strcmp(status,'NotFound')==1
-        bst_call(@gui_show, 'panel_share_protocol', 'JavaWindow', 'Share Protocol', [], 1, 0, 0)
-    else
-        java_dialog('warning',status);
-    end
-    return;
-else
-    disp('Start Sync!');
-end
-%}
 
 %{
 %download

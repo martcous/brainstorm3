@@ -1,4 +1,4 @@
-function [counter] = upload_file(filelocation,uploadid)
+function [counter] = upload_file(filelocation,uploadid,filesize,filename)
 % Upload: Upload file function
 
 % @=============================================================================
@@ -21,31 +21,31 @@ function [counter] = upload_file(filelocation,uploadid)
 %
 % Authors: Chaoyi Liu 2020
 
-%uploadid = "4deb53de-b4c0-4d1b-9f9d-3b448bb158ba";
-
-
-blocksize = 1000000; % 1MB per request
+blocksize = 10000000; % 10MB per request
 counter = 1;
 fileID = fopen(filelocation,'r');
 url=strcat(string(bst_get('UrlAdr')),"/file/upload/", uploadid, "/");
+pointer = 0;
+bst_progress('start', 'uploading', char(filename), 0, filesize);
 while ~feof(fileID)
     blockcontent = fread(fileID,blocksize,'*uint8');
     counter = counter + 1;
-    [response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"false",1);
+    [response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"false",0);
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         java_dialog('warning',status);
         return;
     end
+    pointer = pointer + blocksize;
+    bst_progress('set', pointer);
 end
 
-[response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"true",1);
+[response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"true",0);
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     java_dialog('warning',status);
     return;
 end
+bst_progress('stop');
 fclose(fileID);
-disp(counter);
-
 
 end
 
