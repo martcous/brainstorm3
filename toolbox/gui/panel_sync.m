@@ -4,36 +4,14 @@ function panel_sync()
 
 
 
-%{
-%download
-filename = "300mb.zip";
-blocksize = 10000000; %10mb
-url=strcat(string(bst_get('UrlAdr')),"/file/download/",filename);
-[response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
 
-if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    java_dialog('warning',status);
-    return;
+%download
+[nbStudies] = bst_get('StudyCount');
+for i=1:nbStudies
+    [sStudy, iStudy] = bst_get('Study', i);
+    download_file(iStudy);
+    
 end
-filesize = double(response.Body.Data);
-start = 0;
-fileID = fopen(strcat('/Users/chaoyiliu/Desktop/data/',filename),'w');
-bst_progress('start', 'downloading', 'downloading file',0,filesize);
-while(start < filesize)
-    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),strcat(url,"/", num2str(start),"/",num2str(blocksize)));
-    if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        java_dialog('warning',status);
-        return;
-    end
-    bst_progress('set', start);
-    start = start + blocksize;
-    filestream = response.Body.Data;
-    fwrite(fileID,filestream,'uint8');
-end
-bst_progress('stop');
-fclose(fileID);
-disp("finish download!");
-%}
 
 %{
 bst_set('ProtocolId',"341e0d29-c678-4e87-bb28-f0dc3042a826");
