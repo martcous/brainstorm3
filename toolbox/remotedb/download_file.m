@@ -3,12 +3,12 @@ function [outputArg1,outputArg2] = download_file(studyID)
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % https://neuroimage.usc.edu/brainstorm
-% 
+%
 % Copyright (c)2000-2019 University of Southern California & McGill University
 % This software is distributed under the terms of the GNU General Public License
 % as published by the Free Software Foundation. Further details on the GPLv3
 % license can be found at http://www.gnu.org/copyleft/gpl.html.
-% 
+%
 % FOR RESEARCH PURPOSES ONLY. THE SOFTWARE IS PROVIDED "AS IS," AND THE
 % UNIVERSITY OF SOUTHERN CALIFORNIA AND ITS COLLABORATORS DO NOT MAKE ANY
 % WARRANTY, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
@@ -18,10 +18,8 @@ function [outputArg1,outputArg2] = download_file(studyID)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Zeyu Chen 2020
+% Authors: Zeyu Chen, Chaoyi Liu 2020
 
-
-%url=strcat(string(bst_get('UrlAdr')),"/study/get/4");
 url=strcat(string(bst_get('UrlAdr')),"/study/get/",char(studyID));
 [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
 
@@ -29,50 +27,45 @@ if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     java_dialog('warning',status);
     return;
 else
-     data = jsondecode(response.Body.Data);
-     disp(data);
-     filepath=data.filename;
-     channels=data.channels;
-     timeFreqs=data.timeFreqs;
-     stats=data.stats;
-     headModels.data.headModels;
-     results=data.results;
-     matrixs=data.matrixs;
-
-     filetype=[filepath,channels,timeFreqs,stats,headModels,results,matrixs];
-     for i=1:length(filetype)
-         
-         
-         for j=1:length(filetype(i))
-             ftype=filetype(i);
-             fileID=ftype(j).id;
-             fileName=ftype(j).fileName;
-             url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
-             url2=strcat(url2,"/",fileID);
-             [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
-             if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
+    data = jsondecode(response.Body.Data);
+    filetype=["channels","timeFreqs","stats","headModels","results","matrixs"];
+    for i=1:6
+        for j=1:length(data.(filetype(i)))
+            ftype=data.(filetype(i));
+            fileID=ftype(j).id;
+            fileName=ftype(j).fileName;
+            url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
+            url2=strcat(url2,"/",fileID);
+            [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
+            if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
                 java_dialog('warning',status);
                 return;
-             else
-                 filefullname=strcat(filepath,fileName);
-                 %{
+            else
+                protocolname = "DownloadProtocol";
+                filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
+                filefullname=strcat(filepath,fileName);
+                %{
                  %check whether file exists
                  if exist(filefullname, 'file')
                     delete filefullname;
                  end
-                 %}
-                 fileID = fopen(filefullname,'w');
-                 filestream = response2.Body.Data;
-                 fwrite(fileID,filestream,'uint8');
-                 fclose(fileID);
-                 disp("finish download!");
-             end
-         end
-     end
-
-
+                %}
+                filefullname = char(filefullname);
+                delim_pos = find(filefullname == '/', 1, 'last');
+                newfolder = filefullname(1:delim_pos-1);
+                if ~exist(newfolder, 'dir')
+                    mkdir(newfolder);
+                end
+                fileID = fopen(filefullname,'w');
+                filestream = response2.Body.Data;
+                fwrite(fileID,filestream,'uint8');
+                fclose(fileID);
+                disp("finish download!");
+            end
+        end
+    end
 end
-    
+
 
 %{
 filename = "300mb.zip";

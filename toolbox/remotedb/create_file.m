@@ -90,6 +90,7 @@ data = jsondecode(response.Body.Data);
 uploadid = data.uploadid;
 bst_set('RemoteFileID', sItem.FileName, iStudy, data.fid)
 status = "success";
+disp("studyID GUID: "+studyID);
 end
 
 
