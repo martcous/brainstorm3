@@ -27,6 +27,7 @@ data=struct("deviceid", bst_get('DeviceId'), "sessionid", bst_get('SessionId'));
 [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,0);
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     %java_dialog('warning',status);
+    disp(status);
     sessionon=0;
     disp('session expired');
 else

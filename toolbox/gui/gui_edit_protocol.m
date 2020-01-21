@@ -73,7 +73,7 @@ switch (action)
             return;
         end
         
-        disp(['TODO: Load protocol ' selectedProtocol]);
+        %disp(['TODO: Load protocol ' selectedProtocol]);
         loading();
         
         return;
@@ -98,27 +98,53 @@ ctrl = get(panelProtocolEditor, 'sControls');
 
 % === ACTION: REMOTE ===
     function loading()
-        %lock the protocol
-        disp("start to lock the protocol...");
-        url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",string(bst_get('ProtocolId')));       
-        [response,status] = bst_call(@HTTP_request,'POST','Default',struct(),url,1);
+       
+        url = strcat(string(bst_get('UrlAdr')),"/protocol/get/",string(bst_get('ProtocolId')));
+        [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
-            content=response.Body;
-            show(content);
+            data = jsondecode(response.Body.Data);
+            studies=data.studies;
+            
+            %lock the protocol
+            disp("start to lock the protocol...");
+            url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",string(bst_get('ProtocolId')));       
+            [response,status] = bst_call(@HTTP_request,'POST','Default',struct(),url,1);
+            if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
+                content=response.Body;
+                show(content);
+            else
+                java_dialog('warning',status);
+                return;
+            end       
+            disp('lock protocol successfully!');
+            
+            if ~isempty(studies)
+                for i=1:length(studies)
+                    download(studies(i));
+                end
+                disp("download protocol successfully!");
+            else
+                pause(2);
+                disp("You have the latest version!");
+            end
         else
             java_dialog('warning',status);
             return;
-        end       
-        disp('lock protocol successfully!');
+        end 
         
-        %TODO: load the protocol from server
-        url = strcat(string(bst_get('UrlAdr')),"/file/download/",string(bst_get('ProtocolId'))); 
-         
+        
+        %{
+        [nbStudies] = bst_get('StudyCount');
+        for i=1:nbStudies
+            [sStudy, iStudy] = bst_get('Study', i);
+            download_file(iStudy);
+        end 
+         %}
         
         disp("start to unlock the protocol...");
         url=strcat(string(bst_get('UrlAdr')),"/protocol/unlock/",string(bst_get('ProtocolId')));
         disp(url);
-        [response,status]= bst_call(@HTTP_request,'POST','Default',struct(),url,1);
+        [response,status]= bst_call(@HTTP_request,'POST','Default',struct(),url,0);
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             content=response.Body;
             show(content);
