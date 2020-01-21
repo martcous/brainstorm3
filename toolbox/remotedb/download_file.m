@@ -1,4 +1,4 @@
-function [outputArg1,outputArg2] = download_file(studyID)
+function [outputArg1,outputArg2] = download_file(studyID,subjectID)
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
@@ -20,52 +20,118 @@ function [outputArg1,outputArg2] = download_file(studyID)
 %
 % Authors: Zeyu Chen, Chaoyi Liu 2020
 
-url=strcat(string(bst_get('UrlAdr')),"/study/get/",char(studyID));
-[response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
+if ~isempty(studyID)
+%handle study ffile    
+    url=strcat(string(bst_get('UrlAdr')),"/study/get/",char(studyID));
+    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
 
-if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    java_dialog('warning',status);
-    return;
-else
-    data = jsondecode(response.Body.Data);
-    filetype=["channels","timeFreqs","stats","headModels","results","matrixs","others"];
-    for i=1:7
-        for j=1:length(data.(filetype(i)))
-            ftype=data.(filetype(i));
-            fileID=ftype(j).id;
-            fileName=ftype(j).fileName;
-            url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
-            url2=strcat(url2,"/",fileID);
-            [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
-            if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
-                java_dialog('warning',status);
-                return;
+    if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+        java_dialog('warning',status);
+        return;
+    else
+        data = jsondecode(response.Body.Data);
+        filetype=["channels","timeFreqs","stats","headModels","results","matrixs","others"];
+        for i=1:7
+            if ~isempty(data.(filetype(i)))
+                bst_progress('start', 'download', char(filetype(i)), 0, length(data.(filetype(i))));
             else
-                protocolname = "DownloadProtocol";
-                filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
-                filefullname=strcat(filepath,fileName);
-                %{
-                 %check whether file exists
-                 if exist(filefullname, 'file')
-                    delete filefullname;
-                 end
-                %}
-                filefullname = char(filefullname);
-                delim_pos = find(filefullname == '/', 1, 'last');
-                newfolder = filefullname(1:delim_pos-1);
-                if ~exist(newfolder, 'dir')
-                    mkdir(newfolder);
-                end
-                fileID = fopen(filefullname,'w');
-                filestream = response2.Body.Data;
-                fwrite(fileID,filestream,'uint8');
-                fclose(fileID);
-                disp("finish download!");
+                bst_progress('start', 'download', char(filetype(i)), 1, 1);
             end
+            for j=1:length(data.(filetype(i)))
+                ftype=data.(filetype(i));
+                fileID=ftype(j).id;
+                fileName=ftype(j).fileName;
+                url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
+                url2=strcat(url2,"/",fileID);
+                [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
+                if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
+                    java_dialog('warning',status);
+                    return;
+                else
+                    protocolname = "DownloadProtocol";
+                    filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
+                    filefullname=strcat(filepath,fileName);
+                    %{
+                     %check whether file exists
+                     if exist(filefullname, 'file')
+                        delete filefullname;
+                     end
+                    %}
+                    filefullname = char(filefullname);
+                    delim_pos = find(filefullname == '/', 1, 'last');
+                    newfolder = filefullname(1:delim_pos-1);
+                    if ~exist(newfolder, 'dir')
+                        mkdir(newfolder);
+                    end
+                    fileID = fopen(filefullname,'w');
+                    filestream = response2.Body.Data;
+                    fwrite(fileID,filestream,'uint8');
+                    fclose(fileID);
+                    disp("finish download!");
+                end
+                bst_progress('set', j+1);
+            end
+            bst_progress('stop');
         end
+
+    end
+
+else
+% handle subject afiles
+    url=strcat(string(bst_get('UrlAdr')),"/subject/get/",char(subjectID));
+    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
+
+    if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
+        java_dialog('warning',status);
+        return;
+    else
+        data = jsondecode(response.Body.Data);
+        filetype=["channels","timeFreqs","stats","headModels","results","matrixs","others"];
+        for i=1:7
+            if ~isempty(data.(filetype(i)))
+                bst_progress('start', 'download', char(filetype(i)), 0, length(data.(filetype(i))));
+            else
+                bst_progress('start', 'download', char(filetype(i)), 1, 1);
+            end
+            for j=1:length(data.(filetype(i)))
+                ftype=data.(filetype(i));
+                fileID=ftype(j).id;
+                fileName=ftype(j).fileName;
+                url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
+                url2=strcat(url2,"/",fileID);
+                [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
+                if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
+                    java_dialog('warning',status);
+                    return;
+                else
+                    protocolname = "DownloadProtocol";
+                    filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
+                    filefullname=strcat(filepath,fileName);
+                    %{
+                     %check whether file exists
+                     if exist(filefullname, 'file')
+                        delete filefullname;
+                     end
+                    %}
+                    filefullname = char(filefullname);
+                    delim_pos = find(filefullname == '/', 1, 'last');
+                    newfolder = filefullname(1:delim_pos-1);
+                    if ~exist(newfolder, 'dir')
+                        mkdir(newfolder);
+                    end
+                    fileID = fopen(filefullname,'w');
+                    filestream = response2.Body.Data;
+                    fwrite(fileID,filestream,'uint8');
+                    fclose(fileID);
+                    disp("finish download!");
+                end
+                bst_progress('set', j+1);
+            end
+            bst_progress('stop');
+        end
+
     end
 end
-
 
 %{
 filename = "300mb.zip";

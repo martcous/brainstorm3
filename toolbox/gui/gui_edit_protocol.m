@@ -104,7 +104,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             data = jsondecode(response.Body.Data);
             studies=data.studies;
-            
+            subjects=data.subjects;
             %lock the protocol
             disp("start to lock the protocol...");
             url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",string(bst_get('ProtocolId')));       
@@ -120,12 +120,22 @@ ctrl = get(panelProtocolEditor, 'sControls');
             
             if ~isempty(studies)
                 for i=1:length(studies)
-                    download_file(string(studies(i)));
+                    download_file(string(studies(i)),[]);
                 end
                 disp("download protocol successfully!");
             else
                 pause(2);
-                disp("You have the latest version!");
+                disp("You have the latest study files!");
+            end
+            
+            if ~isempty(subjects)
+                for i=1:length(subjects)
+                    download_file([],string(subjects(i)));
+                end
+                disp("download protocol successfully!");
+            else
+                pause(2);
+                disp("You have the latest subject files!");
             end
         else
             java_dialog('warning',status);
