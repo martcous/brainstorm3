@@ -28,8 +28,8 @@ if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     return;
 else
     data = jsondecode(response.Body.Data);
-    filetype=["channels","timeFreqs","stats","headModels","results","matrixs"];
-    for i=1:6
+    filetype=["channels","timeFreqs","stats","headModels","results","matrixs","others"];
+    for i=1:7
         for j=1:length(data.(filetype(i)))
             ftype=data.(filetype(i));
             fileID=ftype(j).id;

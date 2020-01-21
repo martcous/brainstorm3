@@ -120,7 +120,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
             
             if ~isempty(studies)
                 for i=1:length(studies)
-                    download(studies(i));
+                    download_file(string(studies(i)));
                 end
                 disp("download protocol successfully!");
             else
