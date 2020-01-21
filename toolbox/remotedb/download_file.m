@@ -41,6 +41,8 @@ else
 
      filetype=[filepath,channels,timeFreqs,stats,headModels,results,matrixs];
      for i=1:length(filetype)
+         
+         
          for j=1:length(filetype(i))
              ftype=filetype(i);
              fileID=ftype(j).id;
@@ -52,7 +54,14 @@ else
                 java_dialog('warning',status);
                 return;
              else
-                 fileID = fopen(strcat(filepath,fileName),'w');
+                 filefullname=strcat(filepath,fileName);
+                 %{
+                 %check whether file exists
+                 if exist(filefullname, 'file')
+                    delete filefullname;
+                 end
+                 %}
+                 fileID = fopen(filefullname,'w');
                  filestream = response2.Body.Data;
                  fwrite(fileID,filestream,'uint8');
                  fclose(fileID);
