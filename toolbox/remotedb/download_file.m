@@ -67,7 +67,7 @@ if ~isempty(studyID)
                     filestream = response2.Body.Data;
                     fwrite(fileID,filestream,'uint8');
                     fclose(fileID);
-                    disp("finish download!");
+                    disp("finish download! "+fileName);
                 end
                 bst_progress('set', j+1);
             end
@@ -97,7 +97,7 @@ else
                 ftype=data.(filetype(i));
                 fileID=ftype(j).id;
                 fileName=ftype(j).fileName;
-                url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
+                url2=strcat(string(bst_get('UrlAdr')),"/file/download/afile/",subjectID);
                 url2=strcat(url2,"/",fileID);
                 [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
                 if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
@@ -105,7 +105,7 @@ else
                     return;
                 else
                     protocolname = "DownloadProtocol";
-                    filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/data/");
+                    filepath = strcat(string(bst_get('BrainstormDbDir')),"/",protocolname,"/anat/");
                     filefullname=strcat(filepath,fileName);
                     %{
                      %check whether file exists
@@ -123,7 +123,7 @@ else
                     filestream = response2.Body.Data;
                     fwrite(fileID,filestream,'uint8');
                     fclose(fileID);
-                    disp("finish download!");
+                    disp("finish download! "+fileName);
                 end
                 bst_progress('set', j+1);
             end

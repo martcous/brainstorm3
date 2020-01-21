@@ -122,7 +122,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
                 for i=1:length(studies)
                     download_file(string(studies(i)),[]);
                 end
-                disp("download protocol successfully!");
+                disp("download studies successfully!");
             else
                 pause(2);
                 disp("You have the latest study files!");
@@ -132,7 +132,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
                 for i=1:length(subjects)
                     download_file([],string(subjects(i)));
                 end
-                disp("download protocol successfully!");
+                disp("download subjects successfully!");
             else
                 pause(2);
                 disp("You have the latest subject files!");
@@ -142,7 +142,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
             return;
         end 
         
-        
+        disp("download protocol successfully!");
         %{
         [nbStudies] = bst_get('StudyCount');
         for i=1:nbStudies
