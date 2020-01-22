@@ -1,17 +1,5 @@
 function panel_sync()
-
-
-
-
-
-
-%download
-[nbStudies] = bst_get('StudyCount');
-for i=1:nbStudies
-    [sStudy, iStudy] = bst_get('Study', i);
-    download_file(iStudy);
-    
-end
+%unused function
 
 %{
 bst_set('ProtocolId',"341e0d29-c678-4e87-bb28-f0dc3042a826");

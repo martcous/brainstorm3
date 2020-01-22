@@ -1,5 +1,6 @@
-function [outputArg1,outputArg2] = download_file(studyID,subjectID)
-
+function status = download_file(studyID,subjectID)
+% Download function take studyID or subjectID as input
+% Output the status of downloading, "ok" for success, other for failure
 % @=============================================================================
 % This function is part of the Brainstorm software:
 % https://neuroimage.usc.edu/brainstorm
@@ -26,8 +27,8 @@ if ~isempty(studyID)
     [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
 
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        java_dialog('warning',status);
-        return;
+        %java_dialog('warning',status);
+        return ;
     else
         data = jsondecode(response.Body.Data);
         filetype=["channels","timeFreqs","stats","headModels","results","matrixs","others"];
@@ -46,7 +47,8 @@ if ~isempty(studyID)
                 url2=strcat(url2,"/",fileID);
                 [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
                 if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
-                    java_dialog('warning',status);
+                    %java_dialog('warning',status);
+                    bst_progress('stop');
                     return;
                 else
                     protocolname = "DownloadProtocol";
@@ -84,7 +86,7 @@ else
     [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
 
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        java_dialog('warning',status);
+        %java_dialog('warning',status);
         return;
     else
         data = jsondecode(response.Body.Data);
@@ -109,7 +111,8 @@ else
                     url2=strcat(url2,"/",fileID);
                     [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
                     if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
-                        java_dialog('warning',status);
+                        %java_dialog('warning',status);
+                        bst_progress('stop');
                         return;
                     else
                         protocolname = "DownloadProtocol";

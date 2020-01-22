@@ -23,7 +23,7 @@ function [ iProtocol ] = gui_edit_protocol(action, iProtocol)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Francois Tadel, 2008-2017
+% Authors: Francois Tadel, 2008-2017, Zeyu Chen 2020
 
 global GlobalData;
 
@@ -120,7 +120,10 @@ ctrl = get(panelProtocolEditor, 'sControls');
             
             if ~isempty(studies)
                 for i=1:length(studies)
-                    download_file(string(studies(i)),[]);
+                    dstatus=download_file(string(studies(i)),[]);
+                    if strcmp(dstatus,'200')~=1 && strcmp(dstatus,'OK')~=1
+                        disp("Error with download study "+studies(i)+" on "+dstatus);
+                    end
                 end
                 disp("download studies successfully!");
             else
@@ -130,7 +133,10 @@ ctrl = get(panelProtocolEditor, 'sControls');
             
             if ~isempty(subjects)
                 for i=1:length(subjects)
-                    download_file([],string(subjects(i)));
+                    dstatus=download_file([],string(subjects(i)));
+                    if strcmp(dstatus,'200')~=1 && strcmp(dstatus,'OK')~=1
+                        disp("Error with download subject "+subject(i)+" on "+dstatus);
+                    end
                 end
                 disp("download subjects successfully!");
             else
