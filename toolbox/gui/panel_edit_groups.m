@@ -141,7 +141,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             element=strcat(element,permissions{i});
             element=strcat(element, ']');
             listModel.addElement(element);            
-%             listModel.addElement([string(members{i}) ' [' string(permissions{i}) ']']);
         end
         % Update list model
         jListMembers.setModel(listModel);
@@ -162,51 +161,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
 
     %% ===== BUTTON: CREATE GROUP =====
     function ButtonCreateGroup_Callback(varargin)
-        import matlab.net.*;
-        import matlab.net.http.*;
-        %{
-        groupname=jTextGroup.getText();
-        if strcmp(groupname,'')~=1
-            data=struct('Name',char(groupname));
-            body=MessageBody(data);
-            type1 = MediaType('text/*');
-            type2 = MediaType('application/json','q','.5');
-            acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-            h1 = HeaderField('Content-Type','application/json');
-            h2 = HeaderField('sessionid',bst_get('SessionId'));
-            h3 = HeaderField('deviceid',bst_get('DeviceId'));
-            header = [acceptField,h1,h2,h3];
-            method = RequestMethod.POST;
-            r = RequestMessage(method,header,body);
-
-            show(r);
-
-            url=string(bst_get('UrlAdr'))+"/group/create";
-            disp([url]);
-            gui_hide('Preferences');    
-            try
-                [resp,~,hist]=send(r,uri);
-                status = resp.StatusCode;
-                txt=char(status);
-                if strcmp(txt,'200')==1 ||strcmp(txt,'OK')==1
-                    content=resp.Body;                      
-                    show(content);
-                    java_dialog('msgbox', 'Create group successfully!');
-                    %UpdatePanel();
-                    UpdateGroupsList();
-
-                elseif strcmp(txt,'500')==1 ||strcmp(txt,'InternalServerError')==1
-                    java_dialog('warning', 'Group already exist, change another name!');
-                else
-                    java_dialog('warning', txt);
-                end
-            catch
-                java_dialog('warning', 'Create user groups failed! Check your url!');
-            end
-        else
-            java_dialog('warning', 'Groupname cannot be empty!');
-        end
-        %}
         
         groupname=jTextGroup.getText();
         if strcmp(groupname,'')~=1
@@ -542,10 +496,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             end
             disp('Load user groups successfully!');
         end
-        
-        
-%         members = {'Martin Cousineau', 'Sylvain Baillet', 'Marc Lalancette'};
-%         permissions = {'admin', 'write', 'read'};
+
     end
     %% ===== ADD MEMBER TO GROUP =====
     function [res, error] = AddMember(group, member)
@@ -582,7 +533,6 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
                 content = resp.Body;
                 show(content);
-                %UpdatePanel();
                 java_dialog('msgbox', 'Add group member successfully!');
             else
                 java_dialog('error', txt);
@@ -590,7 +540,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         catch
             java_dialog('warning', 'Add group member failed! Check your url!');
         end
-        %error = 'Could not find member.';
+
     end
 end
 
