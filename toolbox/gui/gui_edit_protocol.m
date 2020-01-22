@@ -72,9 +72,12 @@ switch (action)
         if isempty(selectedProtocol)
             return;
         end
-        
+        iPid = strfind(selectedProtocol, 'd:');
+        if ~isempty(iPid)
+            Pid = selectedProtocol(iPermission(end)+1:end);
+        end
         %disp(['TODO: Load protocol ' selectedProtocol]);
-        loading();
+        loading(Pid);
         
         return;
         iProtocol = nbProtocols + 1;
@@ -97,9 +100,12 @@ panelProtocolEditor = panel_protocol_editor('CreatePanel', action);
 ctrl = get(panelProtocolEditor, 'sControls');
 
 % === ACTION: REMOTE ===
-    function loading()
-       
-        url = strcat(string(bst_get('UrlAdr')),"/protocol/get/",string(bst_get('ProtocolId')));
+    function loading(Pid)
+        
+        
+        
+        %string(bst_get('ProtocolId'))
+        url = strcat(string(bst_get('UrlAdr')),"/protocol/get/",Pid);
         [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             data = jsondecode(response.Body.Data);
@@ -107,7 +113,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
             subjects=data.subjects;
             %lock the protocol
             disp("start to lock the protocol...");
-            url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",string(bst_get('ProtocolId')));       
+            url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",Pid);       
             [response,status] = bst_call(@HTTP_request,'POST','Default',struct(),url,1);
             if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
                 content=response.Body;
@@ -158,7 +164,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
          %}
         
         disp("start to unlock the protocol...");
-        url=strcat(string(bst_get('UrlAdr')),"/protocol/unlock/",string(bst_get('ProtocolId')));
+        url=strcat(string(bst_get('UrlAdr')),"/protocol/unlock/",Pid);
         disp(url);
         [response,status]= bst_call(@HTTP_request,'POST','Default',struct(),url,0);
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1

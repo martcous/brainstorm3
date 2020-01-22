@@ -103,7 +103,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
 
     %% ===== LOAD PROTOCOLS =====
     function protocols = LoadProtocols()
-        protocols = {'Protocol1', 'Protocol2'};
+        %protocols = {'Protocol1', 'Protocol2'};
         url=strcat(string(bst_get('UrlAdr')),"/user/listprotocols");
         disp(url);
         body = struct("start", 0, "count", 100, "order", 0);
@@ -112,9 +112,11 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
             data = jsondecode(response.Body.Data);
             protocols = cell(size(data));
             for i = 1:size(data)
-                protocols{i} = data(i).comment;
+                content=strcat(data(i).comment+" id:"+data(i).id);
+                protocols{i} = content;
             end
         else
+            protocols={};
             java_dialog('warning',status);
             return;
         end       
