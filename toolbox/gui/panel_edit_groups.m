@@ -1,6 +1,12 @@
 function varargout = panel_edit_groups(varargin)
 % PANEL_EDIT_GROUPS:  Edit user group memberships.
 % USAGE:  [bstPanelNew, panelName] = panel_edit_groups('CreatePanel')
+% Function UpdateGroupsList() call function LoadGroups() to show latest Grouplist 
+% Function UpdateMembersList() call function LoadMembers(group) with specific group to show
+% latest MembersList 
+% 
+% Function AddMember(group, member) to add a member to a group 
+
 
 % @=============================================================================
 % This function is part of the Brainstorm software:
@@ -20,7 +26,7 @@ function varargout = panel_edit_groups(varargin)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Martin Cousineau, 2019
+% Authors: Martin Cousineau, Zeyu Chen, Chaoyi Liu, 2019
 
 eval(macro_method);
 end

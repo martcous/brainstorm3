@@ -22,7 +22,7 @@ function varargout = panel_db_login(varargin)
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Martin Cousineau, 2019
+% Authors: Martin Cousineau, Zeyu Chen, Chaoyi Liu, 2019
 
 eval(macro_method);
 end
@@ -169,45 +169,6 @@ UpdatePanel();
                 else
                     device=bst_get('DeviceId');
                 end
-                %{
-                data = struct('firstName',char(jTextFirstName.getText()),'lastName',char(jTextLastName.getText()),...
-                    'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
-                    'deviceid',char(device));
-                body=MessageBody(data);
-                contentTypeField = matlab.net.http.field.ContentTypeField('application/json');
-                type1 = matlab.net.http.MediaType('text/*');
-                type2 = matlab.net.http.MediaType('application/json','q','.5');
-                acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-                header = [acceptField contentTypeField];
-                method =RequestMethod.POST;
-                r=RequestMessage(method,header,body);
-                show(r);
-                url=string(jTextServerUrl.getText());
-                url=url+"/user/createuser";
-                uri= URI(url);               
-                try
-                    [resp,~,hist]=send(r,uri);
-                    status = resp.StatusCode;
-                    txt=char(status);
-                    if strcmp(txt,'200')==1 ||strcmp(txt,'OK')==1
-                        newUrlAdr = char(jTextServerUrl.getText());
-                        if ~isempty(newUrlAdr)
-                            bst_set('UrlAdr',newUrlAdr)
-                        end
-                        content=resp.Body;
-                        show(content);
-                        bst_set('Email',jTextEmail.getText());
-                        session = jsondecode(content.Data);
-                        bst_set('SessionId',string(session.sessionid));
-                        %UpdatePanel();
-                        java_dialog('msgbox', 'Register successfully!');
-                    else
-                        java_dialog('warning',txt);
-                    end
-                catch
-                    java_dialog('warning', 'Check server url!');
-                end
-                %}
                 
                 data = struct('firstName',char(jTextFirstName.getText()),'lastName',char(jTextLastName.getText()),...
                     'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
@@ -227,7 +188,6 @@ UpdatePanel();
                     bst_set('Email',jTextEmail.getText());
                     session = jsondecode(content.Data);
                     bst_set('SessionId',string(session.sessionid));
-                    %UpdatePanel();
                     java_dialog('msgbox', 'Register successfully!');
                 end
                 
@@ -246,7 +206,6 @@ UpdatePanel();
                 java_dialog('warning', 'Password cannot be empty!');
             else
                 if(isempty(bst_get('DeviceId')))
-                    % device = get(com.sun.security.auth.module.NTSystem,'DomainSID');
                     device = '';
                     ni = java.net.NetworkInterface.getNetworkInterfaces;
                     while ni.hasMoreElements
