@@ -41,17 +41,14 @@ switch (action)
         panelTitle = 'Load existing protocol';
     case 'remote'
         disp('Loading remote protocol');
-        sessionid=bst_get('SessionId');
-        deviceid=bst_get('DeviceId');
-        url= string(bst_get('UrlAdr'));
-        if isempty(sessionid) || isempty(deviceid) || isempty(url)
+        RemoteDbConfig = bst_get('RemoteDbConfig');
+        if isempty(RemoteDbConfig.SessionId)
             java_dialog('warning', 'You are not logged in.');
             return;
         end
-        data = struct('deviceid',deviceid,'sessionid',sessionid);
-        url=strcat(url,"/user/checksession");
+        data = struct('deviceid', RemoteDbConfig.DeviceId, 'sessionid', RemoteDbConfig.SessionId);
         
-        [response,status] = bst_call(@HTTP_request,'POST','None',data,url,1);
+        [response,status] = HTTP_request('user/checksession', 'POST', data, 'None', 1);
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             content=response.Body;
             if(strcmp(content.Data,'false')==1)
@@ -101,20 +98,14 @@ ctrl = get(panelProtocolEditor, 'sControls');
 
 % === ACTION: REMOTE ===
     function loading(Pid)
-        
-        
-        
-        %string(bst_get('ProtocolId'))
-        url = strcat(string(bst_get('UrlAdr')),"/protocol/get/",Pid);
-        [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
+        [response,status] = HTTP_request(['protocol/get/' Pid], 'GET');
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             data = jsondecode(response.Body.Data);
             studies=data.studies;
             subjects=data.subjects;
             %lock the protocol
             disp("start to lock the protocol...");
-            url = strcat(string(bst_get('UrlAdr')),"/protocol/lock/",Pid);       
-            [response,status] = bst_call(@HTTP_request,'POST','Default',struct(),url,1);
+            [response,status] = HTTP_request(['protocol/lock/',Pid], 'POST', struct(), 'Default', 1);
             if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
                 content=response.Body;
                 show(content);
@@ -164,9 +155,7 @@ ctrl = get(panelProtocolEditor, 'sControls');
          %}
         
         disp("start to unlock the protocol...");
-        url=strcat(string(bst_get('UrlAdr')),"/protocol/unlock/",Pid);
-        disp(url);
-        [response,status]= bst_call(@HTTP_request,'POST','Default',struct(),url,0);
+        [response,status] = HTTP_request(['protocol/unlock/',Pid], 'POST');
         if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
             content=response.Body;
             show(content);

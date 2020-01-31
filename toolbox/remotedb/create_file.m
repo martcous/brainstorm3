@@ -22,7 +22,6 @@ function [uploadid,status] = create_file(fileName, filetype, MD5,overwrite)
 %
 % Authors: Chaoyi Liu, Zeyu Chen 2020
 
-url = strcat(string(bst_get('UrlAdr')),"/");
 uploadid = [];
 [sStudy, iStudy, iItem, DataType, sItem] = bst_get('AnyFile', fileName);
 if(isfield(sItem,'RemoteID') && ~isempty(sItem.RemoteID) && overwrite==0)
@@ -33,54 +32,47 @@ end
 studyID=sStudy.RemoteID;
 switch(filetype)
     case 'channel'
-        url = strcat(url,"createChannel");
         body = struct('nbChannels',empty2zero(findattribute(sItem,"nbChannels")),'transfMegLabels',empty2string(findattribute(sItem,"transfMegLabels")),...
           'transfEegLabels',empty2string(findattribute(sItem,"transfEegLabels")),...
           'comment', empty2string(findattribute(sItem,"Comment")),'fileName', sItem.FileName,...
           'fileType',1, 'md5', string(MD5),'studyID', studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createChannel', 'POST', body);
     case 'timefreq'
-        url = strcat(url,"createTimeFreq");
         body = struct("measure", empty2string(findattribute(sItem,"measure")),"method", empty2string(findattribute(sItem,"method")),...
           "nAvg", 0,"colormapType", empty2string(findattribute(sItem,"colormapType")),...
           "displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
           "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
           "fileType", 2, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0); 
+        [response,status] = HTTP_request('createTimeFreq', 'POST', body);
     case {'presults', 'pdata','ptimefreq','pmatrix'}
-        url = strcat(url,"createStat");
         body = struct("df",0,"correction",true,...
             "type", filetype,...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 3, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createStat', 'POST', body);
     case 'headmodel'
-        url = strcat(url,"createHeadModel");
         body = struct("type", empty2string(findattribute(sItem,"type")),"megMethod", empty2string(findattribute(sItem,"megMethod")),...
             "eegMethod", empty2string(findattribute(sItem,"eegMethod")),"ecogMethod", empty2string(findattribute(sItem,"ecogMethod")),...
             "seegMethod", empty2string(findattribute(sItem,"seegMethod")),...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 4, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createHeadModel', 'POST', body);
     case 'results'
-        url = strcat(url,"createResult");
         body = struct("isLink", true,"nComponents", empty2zero(findattribute(sItem,"nComponents")),...
             "function", empty2string(findattribute(sItem,"function")),"nAvg", empty2zero(findattribute(sItem,"nAvg")),...
             "colormapType", empty2string(findattribute(sItem,"colormapType")),"displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
             "comment", empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 5, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createResult', 'POST', body);
     case 'matrix'
-        url = strcat(url,"createMatrix");
         body = struct("nAvg", 0,"displayUnits", empty2string(findattribute(sItem,"displayUnits")),...
             "comment",empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 6, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createMatrix', 'POST', body);
     otherwise
-        url = strcat(url,"createOther");
         body = struct("comment",empty2string(findattribute(sItem,"Comment")),"fileName", sItem.FileName,...
             "fileType", 7, "md5", string(MD5),"studyID", studyID);
-        [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+        [response,status] = HTTP_request('createOther', 'POST', body);
 end
 if strcmp(status,'OK')~=1
     %java_dialog('warning',status);

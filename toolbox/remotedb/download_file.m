@@ -22,10 +22,8 @@ function status = download_file(studyID,subjectID)
 % Authors: Zeyu Chen, Chaoyi Liu 2020
 
 if ~isempty(studyID)
-%handle study ffile    
-    url=strcat(string(bst_get('UrlAdr')),"/study/get/",char(studyID));
-    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
-
+%handle study ffile
+    [response,status] = HTTP_request(['study/get/' studyID], 'GET');
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         %java_dialog('warning',status);
         return ;
@@ -43,9 +41,8 @@ if ~isempty(studyID)
                 ftype=data.(filetype(i));
                 fileID=ftype(j).id;
                 fileName=ftype(j).fileName;
-                url2=strcat(string(bst_get('UrlAdr')),"/file/download/ffile/",studyID);
-                url2=strcat(url2,"/",fileID);
-                [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
+                
+                [response2,status2] = HTTP_request(['file/download/ffile/' studyID '/' fileID], 'POST');
                 if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
                     %java_dialog('warning',status);
                     bst_progress('stop');
@@ -82,9 +79,7 @@ if ~isempty(studyID)
 
 else
 % handle subject afiles
-    url=strcat(string(bst_get('UrlAdr')),"/subject/get/",char(subjectID));
-    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,0);
-
+    [response,status] = HTTP_request(['subject/get/' subjectID], 'GET');
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         %java_dialog('warning',status);
         return;
@@ -107,9 +102,7 @@ else
                     ftype=study.(filetype(i));
                     fileID=ftype(j).id;
                     fileName=ftype(j).fileName;
-                    url2=strcat(string(bst_get('UrlAdr')),"/file/download/afile/",subjectID);
-                    url2=strcat(url2,"/",fileID);
-                    [response2,status2] = bst_call(@HTTP_request,'POST','Default',struct(),url2,0);
+                    [response2,status2] = HTTP_request(['file/download/afile/' subjectID '/' fileID], 'POST');
                     if strcmp(status2,'200')~=1 && strcmp(status2,'OK')~=1
                         %java_dialog('warning',status);
                         bst_progress('stop');
@@ -145,36 +138,6 @@ else
         end
     end
 end
-
-%{
-filename = "300mb.zip";
-blocksize = 10000000; %10mb
-url=strcat(string(bst_get('UrlAdr')),"/file/download/",filename);
-[response,status] = bst_call(@HTTP_request,'GET','Default',struct(),url,1);
-
-if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    java_dialog('warning',status);
-    return;
-end
-filesize = double(response.Body.Data);
-start = 0;
-fileID = fopen(strcat('/Users/chaoyiliu/Desktop/data/',filename),'w');
-bst_progress('start', 'downloading', 'downloading file',0,filesize);
-while(start < filesize)
-    [response,status] = bst_call(@HTTP_request,'GET','Default',struct(),strcat(url,"/", num2str(start),"/",num2str(blocksize)));
-    if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-        java_dialog('warning',status);
-        return;
-    end
-    bst_progress('set', start);
-    start = start + blocksize;
-    filestream = response.Body.Data;
-    fwrite(fileID,filestream,'uint8');
-end
-bst_progress('stop');
-fclose(fileID);
-disp("finish download!");
-%}
 
 end
 

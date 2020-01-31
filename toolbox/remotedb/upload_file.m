@@ -24,13 +24,12 @@ function [counter] = upload_file(filelocation,uploadid,filesize,filename)
 blocksize = 10000000; % 10MB per request
 counter = 1;
 fileID = fopen(filelocation,'r');
-url=strcat(string(bst_get('UrlAdr')),"/file/upload/", uploadid, "/");
 pointer = 0;
 bst_progress('start', 'uploading', char(filename), 0, filesize);
 while ~feof(fileID)
     blockcontent = fread(fileID,blocksize,'*uint8');
     counter = counter + 1;
-    [response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"false",0);
+    [response,status] = HTTP_request(['file/upload/' uploadid '/false'], 'POST', blockcontent, 'Stream');
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         java_dialog('warning',status);
         return;
@@ -39,7 +38,7 @@ while ~feof(fileID)
     bst_progress('set', pointer);
 end
 
-[response,status] = bst_call(@HTTP_request,'POST','Stream',blockcontent,url+"true",0);
+[response,status] = HTTP_request(['file/upload/' uploadid '/true'], 'POST', blockcontent, 'Stream');
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
     java_dialog('warning',status);
     return;

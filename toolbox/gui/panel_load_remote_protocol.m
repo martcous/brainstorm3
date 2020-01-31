@@ -103,11 +103,8 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
 
     %% ===== LOAD PROTOCOLS =====
     function protocols = LoadProtocols()
-        %protocols = {'Protocol1', 'Protocol2'};
-        url=strcat(string(bst_get('UrlAdr')),"/user/listprotocols");
-        disp(url);
-        body = struct("start", 0, "count", 100, "order", 0);
-        [response,status]= bst_call(@HTTP_request,'POST','Default',body, url,0);
+        data = struct("start", 0, "count", 100, "order", 0);
+        [response,status] = HTTP_request('user/listprotocols', 'POST', data);
         if strcmp(status,'200')==1 || strcmp(status,'OK')==1
             data = jsondecode(response.Body.Data);
             protocols = cell(size(data));

@@ -58,8 +58,8 @@ jPanelProj.setLayout(BoxLayout(jPanelProj, BoxLayout.Y_AXIS));
 jPanelProj.setPreferredSize(java_scaled('dimension', 300, 250));
 jPanelOpt = gui_river([2,2], [2,4,2,4]);
 gui_component('Label', jPanelOpt, '', 'Server URL: ');
-server_url = bst_get('UrlAdr');
-jTextServerUrl = gui_component('text', jPanelOpt, 'hfill', server_url);
+RemoteDbConfig = bst_get('RemoteDbConfig');
+jTextServerUrl = gui_component('text', jPanelOpt, 'hfill', RemoteDbConfig.Url);
 jPanelProj.add(jPanelOpt);
 
 if isRegister
@@ -79,7 +79,7 @@ end
 jPanelOpt = gui_river([2,2], [2,4,2,4]);
 gui_component('Label', jPanelOpt, 'br', 'Email address: ');
 if ~isRegister
-    jTextEmail = gui_component('text', jPanelOpt, 'hfill', bst_get('Email'));
+    jTextEmail = gui_component('text', jPanelOpt, 'hfill', RemoteDbConfig.Email);
 else
     jTextEmail = gui_component('text', jPanelOpt, 'hfill', '');
 end
@@ -134,6 +134,7 @@ UpdatePanel();
     function ButtonOk_Callback(varargin)
         gui_hide('Preferences');
         gui_hide('DbLoginRegister');
+        
         if isRegister
             disp('Register');
             %java_dialog('msgbox', ['Your registration request was sent to the database administrator.' 10 'You will be notified by email once it is approved.'], 'Register');
@@ -150,32 +151,22 @@ UpdatePanel();
             elseif strcmp(jTextPassword.getText(),'')==1
                 java_dialog('warning', 'Password cannot be empty!');
             elseif strcmp(jTextPassword.getText(),jTextPassword2.getText())~=1
-                java_dialog('warning', 'Different password!');
+                java_dialog('warning', 'Passwords do not match!');
             elseif length(jTextPassword.getText()) < 8  
-                java_dialog('warning', 'Password has to be longer than 8 Characters!');
+                java_dialog('warning', 'Password has to be 8 characters or longer!');
             else
-                if(isempty(bst_get('DeviceId')))
-                    % device = get(com.sun.security.auth.module.NTSystem,'DomainSID');
-                    device = '';
-                    ni = java.net.NetworkInterface.getNetworkInterfaces;
-                    while ni.hasMoreElements
-                        addr = ni.nextElement.getHardwareAddress;
-                        if ~isempty(addr)
-                            addrStr = dec2hex(int16(addr)+128);
-                            device = [device, '.', reshape(addrStr,1,2*length(addr))];
-                        end
-                    end
-                    bst_set('DeviceId',device);
-                else
-                    device=bst_get('DeviceId');
+                if(isempty(RemoteDbConfig.DeviceId))
+                    RemoteDbConfig.DeviceId = bst_get('UniqueDeviceId');
+                    bst_set('RemoteDbConfig', RemoteDbConfig);
                 end
                 
-                data = struct('firstName',char(jTextFirstName.getText()),'lastName',char(jTextLastName.getText()),...
-                    'email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
-                    'deviceid',char(device));
-                url=string(jTextServerUrl.getText());
-                url=url+"/user/createuser"; 
-                [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
+                data = struct('firstName', char(jTextFirstName.getText()), ...
+                    'lastName', char(jTextLastName.getText()), ...
+                    'email', char(jTextEmail.getText()), ...
+                    'password', char(jTextPassword.getText()), ...
+                    'deviceid', RemoteDbConfig.DeviceId);
+                
+                [response,status] = HTTP_request('user/createuser', 'POST', 'None', data, 0);
                 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                     java_dialog('warning',status);
                 else
@@ -205,67 +196,17 @@ UpdatePanel();
             elseif strcmp(jTextPassword.getText(),'')==1
                 java_dialog('warning', 'Password cannot be empty!');
             else
-                if(isempty(bst_get('DeviceId')))
-                    device = '';
-                    ni = java.net.NetworkInterface.getNetworkInterfaces;
-                    while ni.hasMoreElements
-                        addr = ni.nextElement.getHardwareAddress;
-                        if ~isempty(addr)
-                            addrStr = dec2hex(int16(addr)+128);
-                            device = [device, '.', reshape(addrStr,1,2*length(addr))];
-                        end
-                    end                   
-                    bst_set('DeviceId',device);
-                else
-                    device=bst_get('DeviceId');
-                end
-                %{
-                data=struct('email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
-                    'deviceid',char(device));
-                body=MessageBody(data);
-                contentTypeField = matlab.net.http.field.ContentTypeField('application/json');
-                type1 = matlab.net.http.MediaType('text/*');
-                type2 = matlab.net.http.MediaType('application/json','q','.5');
-                acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-                header = [acceptField contentTypeField];
-                method =RequestMethod.POST;
-                r=RequestMessage(method,header,body);
-                show(r);
-                url=string(jTextServerUrl.getText());
-                url=url+"/user/login";
-                uri= URI(url);
-                try
-                    [resp,~,hist]=send(r,uri);
-                    status = resp.StatusCode;
-                    txt=char(status);
-                    if strcmp(txt,'200')==1 ||strcmp(txt,'OK')==1
-                        content=resp.Body;                      
-                        show(content);
-                        bst_set('Email',jTextEmail.getText());
-                        %{
-                        session=strtok(string(content),',');
-                        session=char(extractAfter(session,":"));
-                        %}
-                        session = jsondecode(content.Data);
-                        bst_set('SessionId',string(session.sessionid));
-                        bst_set('UrlAdr',jTextServerUrl.getText());
-                        java_dialog('msgbox', 'Log in successfully!');
-                        %UpdatePanel();
-                    elseif strcmp(txt,'401')==1 || strcmp(txt,'Unauthorized')==1
-                        java_dialog('warning', 'Login failed. Your email or password is wrong!');
-                    else
-                        java_dialog('warning', txt);
-                    end
-                catch
-                    java_dialog('warning', 'Check server url!');
-                end
-                %}
+                if(isempty(RemoteDbConfig.DeviceId))
+                    RemoteDbConfig.DeviceId = bst_get('UniqueDeviceId');
+                end      
+                RemoteDbConfig.Url = char(jTextServerUrl.getText());
+                bst_set('RemoteDbConfig', RemoteDbConfig);
                 
-                data=struct('email',char(jTextEmail.getText()),'password',char(jTextPassword.getText()),...
-                    'deviceid',char(device));
-                url=string(jTextServerUrl.getText());
-                url=url+"/user/login";
-                [response,status] = bst_call(@HTTP_request,'POST','None',data,url,0);
+                data = struct('email', char(jTextEmail.getText()), ...
+                    'password', char(jTextPassword.getText()), ...
+                    'deviceid', RemoteDbConfig.DeviceId);
+                
+                [response,status] = HTTP_request('user/login', 'POST', data, 'None');
                 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                     java_dialog('warning',status);
                 elseif strcmp(status,'401')==1 || strcmp(status,'Unauthorized')==1
@@ -273,11 +214,11 @@ UpdatePanel();
                 else
                     content=response.Body;                      
                     show(content);
-                    bst_set('Email',jTextEmail.getText());
-                    session = jsondecode(content.Data);
-                    bst_set('SessionId',string(session.sessionid));
-                    bst_set('UrlAdr',jTextServerUrl.getText());
-                    java_dialog('msgbox', 'Log in successfully!');
+                    RemoteDbConfig.Email = char(jTextEmail.getText());
+                    session = bst_jsondecode(char(content.Data));
+                    RemoteDbConfig.SessionId = char(session.sessionid);
+                    bst_set('RemoteDbConfig', RemoteDbConfig);
+                    java_dialog('msgbox', 'Logged in successfully!');
                 end
                
             end

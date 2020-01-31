@@ -2621,12 +2621,11 @@ switch contextName
         argout1 = tpmUser;
 
 
-    case 'UrlAdr'
-        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'UrlAdr')&& ~isempty(GlobalData.Preferences.UrlAdr)
-            argout1=GlobalData.Preferences.UrlAdr;
-        else
-            argout1=[];
+    case 'RemoteDbConfig'
+        if ~isfield(GlobalData, 'Preferences') || ~isfield(GlobalData.Preferences,'RemoteDbConfig') || isempty(GlobalData.Preferences.RemoteDbConfig)
+            GlobalData.Preferences.RemoteDbConfig = db_template('RemoteDbConfig');
         end
+        argout1 = GlobalData.Preferences.RemoteDbConfig;
 
         
     case 'PythonConfig'
@@ -2650,25 +2649,16 @@ switch contextName
             argout1.QtDir = '';
         end
         
-    case 'DeviceId'
-        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'DeviceId')&& ~isempty(GlobalData.Preferences.DeviceId)
-            argout1=GlobalData.Preferences.DeviceId;
-        else
-            argout1=[];
-        end
-                    
-    case 'SessionId'
-        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'SessionId')&& ~isempty(GlobalData.Preferences.SessionId)
-            argout1=GlobalData.Preferences.SessionId;
-        else
-            argout1=[];
-        end
-    
-    case 'Email'
-        if isfield(GlobalData, 'Preferences') && isfield(GlobalData.Preferences,'Email')&& ~isempty(GlobalData.Preferences.Email)
-            argout1=GlobalData.Preferences.Email;
-        else
-            argout1=[];
+    case 'UniqueDeviceId'
+        % Returns a unique ID for the computer using Java
+        argout1 = [];
+        ni = java.net.NetworkInterface.getNetworkInterfaces();
+        while ni.hasMoreElements()
+            addr = ni.nextElement().getHardwareAddress();
+            if ~isempty(addr)
+                addrStr = dec2hex(int16(addr)+128);
+                argout1 = [argout1, '.', reshape(addrStr,1,2*length(addr))];
+            end
         end
         
      case 'ProtocolId'
@@ -2678,6 +2668,7 @@ switch contextName
         else
             argout1=sProtocolInfo.RemoteID;
         end
+        
     case 'ElectrodeConfig'
         % Get modality
         Modality = varargin{2};

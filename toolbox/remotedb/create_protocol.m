@@ -25,8 +25,8 @@ function [output] = create_protocol()
 if isempty(bst_get('ProtocolId'))
     pid = " ";
 else
-    pid = convertCharsToStrings(bst_get('ProtocolId'));
-    disp("ProtocolID exist on local! Still check on remote. ");
+    pid = bst_get('ProtocolId');
+    disp('ProtocolID exists on local! Still check on remote. ');
     disp(pid);
     %return;
 end
@@ -39,19 +39,16 @@ data = struct('Id',pid,'Name',sProtocol.Comment, 'Isprivate', false, ...
     'Usedefaultanat',num2bool(sProtocol.UseDefaultAnat), 'Usedefaultchannel',...
     num2bool(sProtocol.UseDefaultChannel));
 
-serveradr = string(bst_get('UrlAdr'));
-url=strcat(serveradr,"/protocol/share");
-[response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+[response,status] = HTTP_request('protocol/share', 'POST', data, 'Default', 1);
 if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
-    if strcmp(status,'404')==1 || strcmp(response,'NotFound')==1
-        java_dialog('error','Upload protocol failed!');
+    if (~isempty(status) && strcmp(status,'404')) || (~isempty(response) && strcmp(response, 'NotFound'))
+        error('Upload protocol failed!');
     else
-        java_dialog('warning',status);
-        return;
+        error(status);
     end
 else
-    newid=response.Body.Data;
-    newid=extractBetween(newid,8,strlength(newid)-2);
+    respData = bst_jsondecode(char(response.Body.Data));
+    newid = respData.id;
     disp(newid);
     sProtocol.RemoteID = newid;
     bst_set('ProtocolInfo',sProtocol);

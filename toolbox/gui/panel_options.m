@@ -173,15 +173,13 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     
     % ===== RIGHT: REMOTE DATABASE =====
     jPanelReset = gui_river([5 5], [0 15 15 15], 'Remote Database');
-        CheckLogin();       
-        if ~isempty(bst_get('SessionId')) 
-            email=bst_get('Email');
-            labellogin="Logged in as " + string(email);
-            gui_component('Label',  jPanelReset, [], labellogin, [], [], []);
+        RemoteDbConfig = bst_get('RemoteDbConfig');   
+        if isLoggedIn()
+            gui_component('Label',  jPanelReset, [], ['Logged in as ' RemoteDbConfig.Email]);
             gui_component('Button', jPanelReset, 'br', 'Groups', [], [], @ButtonGroups_Callback);
             gui_component('Button', jPanelReset, [], 'Logout', [], [], @ButtonLogout_Callback);
         else
-            gui_component('Label',  jPanelReset, [], 'Not connected to a remote database.', [], [], []);
+            gui_component('Label',  jPanelReset, [], 'Not connected to a remote database.');
             gui_component('Button', jPanelReset, [], 'Login', [], [], @ButtonLogin_Callback);
             gui_component('Button', jPanelReset, [], 'Register', [], [], @ButtonRegister_Callback);
         end
@@ -220,62 +218,29 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
 %  === CONTROLS CALLBACKS  =========================================================
 %  =================================================================================
 %% ===== LOGIN CHECK =====
-    function CheckLogin()
-        import matlab.net.*;
-        import matlab.net.http.*;
-        
-        if isempty(bst_get('SessionId'))
-            return;
-        end
-        
-        if(isempty(bst_get('DeviceId')))
-            device = '';
-            ni = java.net.NetworkInterface.getNetworkInterfaces;
-            while ni.hasMoreElements
-                addr = ni.nextElement.getHardwareAddress;
-                if ~isempty(addr)
-                    addrStr = dec2hex(int16(addr)+128);
-                    device = [device, '.', reshape(addrStr,1,2*length(addr))];
-                end
-            end
-            bst_set('DeviceId',device);
+    function res = isLoggedIn()
+        if isempty(RemoteDbConfig.SessionId)
+            res = 0;
+        elseif ~isempty(RemoteDbConfig.TimeOut) && (RemoteDbConfig.TimeOut + duration([0,30,0])) > datetime('now')
+            res = 1;
         else
-            device=bst_get('DeviceId');
-        end
-
-        data=struct('sessionid',bst_get('SessionId'),'deviceid',char(device));
-        body=MessageBody(data);
-        contentTypeField = matlab.net.http.field.ContentTypeField('application/json');
-        type1 = matlab.net.http.MediaType('text/*');
-        type2 = matlab.net.http.MediaType('application/json','q','.5');
-        acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-        header = [acceptField contentTypeField];
-        method =RequestMethod.POST;
-        r=RequestMessage(method,header,body);
-        show(r);
-        url = string(bst_get('UrlAdr'));
-        url=strcat(url,"/user/checksession");
-        uri= URI(url);
-        try
-            [resp,~,hist]=send(r,uri);
-            status = resp.StatusCode;
-            txt=char(status);
-            if strcmp(status,'200')==1 || strcmp(txt,'OK')==1
+            res = 0;
+            if isempty(RemoteDbConfig.DeviceId)
+                RemoteDbConfig.DeviceId = bst_get('UniqueDeviceId');
+            end
+            data = struct('sessionid', RemoteDbConfig.SessionId, ...
+                'deviceid', RemoteDbConfig.DeviceId);
+            [resp, status] = HTTP_request('user/checksession', 'POST', data);
+            if strcmp(status,'200')==1 || strcmp(status,'OK')==1
                 content=resp.Body;
                 show(content);
-                if(strcmp(content.Data,'true')==1)
-                    checkresult = 1;
-                else
-                    checkresult = 0;
-                    bst_set('SessionId');
-                end
-            else
-                bst_set('SessionId');
-                disp('session expires');
+                res = strcmp(char(content.Data),'true');
             end
-        catch
-            bst_set('SessionId');
-            disp('session expires');
+            
+            if ~res
+                RemoteDbConfig.SessionId = [];
+                bst_set('RemoteDbConfig', RemoteDbConfig);
+            end
         end
     end
 
@@ -897,12 +862,12 @@ end
 
 %% ===== BUTTON: LOGOUT =====
 function ButtonLogout_Callback(varargin)
-    bst_set('SessionId');
-    if isempty(bst_get('SessionId'))
-        disp('Log out successfully!');
-    end
+    RemoteDbConfig = bst_get('RemoteDbConfig');
+    RemoteDbConfig.SessionId = [];
+    RemoteDbConfig.TimeOut = [];
+    bst_set('RemoteDbConfig', RemoteDbConfig);
     gui_hide('Preferences');
-    java_dialog('msgbox', 'Log out successfully!');
+    java_dialog('msgbox', 'Logged out successfully!');
 end
 
 

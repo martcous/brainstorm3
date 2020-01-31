@@ -75,7 +75,6 @@ end
 function [sStudy] = create_study(protocol_id,sStudy, iStudy,overwrite)
 % if missing RemoteID, create new study on remote
 if(~isfield(sStudy,'RemoteID') || isempty(sStudy.RemoteID) || overwrite == 1)
-    url=strcat(string(bst_get('UrlAdr')),"/study/create");
     %find its subject
     [sSubject] = bst_get('Subject', sStudy.BrainStormSubject);
     [md5,filesize] = getChecksum(file_fullpath(sStudy.FileName));
@@ -83,7 +82,7 @@ if(~isfield(sStudy,'RemoteID') || isempty(sStudy.RemoteID) || overwrite == 1)
         "dateOfStudy", sStudy.DateOfStudy, "iChannel", empty2zero(sStudy.iChannel),...
         "iHeadModel",empty2zero(sStudy.iHeadModel), "protocolId",protocol_id,...
         "subjectId",sSubject.RemoteID, 'md5',md5);
-    [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+    [response,status] = HTTP_request('subject/create', 'POST', body);
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         java_dialog('warning',status);
         return;
@@ -101,7 +100,6 @@ end
 function [sSubject] = create_subject(protocol_id,sSubject,iSubject,overwrite)
 % if missing RemoteID, create new subject on remote
 if(~isfield(sSubject,'RemoteID') || isempty(sSubject.RemoteID) || overwrite == 1)
-    url=strcat(string(bst_get('UrlAdr')),"/subject/create");
     [md5,filesize] = getChecksum(file_fullpath(sSubject.FileName));
     body=struct("comment",empty2string(sSubject.Comments), "filename", sSubject.FileName,...
         "name",sSubject.Name, "useDefaultAnat",num2bool(sSubject.UseDefaultAnat),...
@@ -110,7 +108,7 @@ if(~isfield(sSubject,'RemoteID') || isempty(sSubject.RemoteID) || overwrite == 1
         "iCortex",empty2zero(sSubject.iCortex), "iInnerSkull",empty2zero(sSubject.iInnerSkull),...
         "iOuterSkull",empty2zero(sSubject.iOuterSkull), "iOther",empty2zero(sSubject.iOther),...
         "protocolId",protocol_id,'md5', md5);
-    [response,status] = bst_call(@HTTP_request,'POST','Default',body,url,0);
+    [response,status] = HTTP_request('subject/create', 'POST', body);
     if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
         java_dialog('warning',status);
         return;

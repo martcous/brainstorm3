@@ -165,8 +165,7 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         groupname=jTextGroup.getText();
         if strcmp(groupname,'')~=1
             data=struct('Name',char(groupname));
-            url=string(bst_get('UrlAdr'))+"/group/create";     
-            [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+            [response,status] = HTTP_request('group/create', 'POST', data, 'Default', 1);
             if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
                 java_dialog('warning',status);
             elseif strcmp(status,'500')==1 ||strcmp(status,'InternalServerError')==1
@@ -217,48 +216,22 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         [res, isCancel] = java_dialog('combo', 'What permissions would you like to give this member?', 'Edit permissions', [], {'Member', 'Manager'});
         if ~isCancel
             
-            disp(['TODO: Edit permissions of member "' member '" of group "' group '" to "' res '"']);
-            import matlab.net.*;
-            import matlab.net.http.*;
-
-            type1 = MediaType('text/*');
-            type2 = MediaType('application/json','q','.5');
-            acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-            h1 = HeaderField('Content-Type','application/json');
-            h2 = HeaderField('sessionid',bst_get('SessionId'));
-            h3 = HeaderField('deviceid',bst_get('DeviceId'));
-            header = [acceptField,h1,h2,h3];
-            method = RequestMethod.POST;
-            
             if strcmp(res,'Manager')==1
-                permission=1
+                permission = 1;
             else
-                permission=2
+                permission = 2;
             end
-            data = struct('GroupName',group,'UserEmail',member,'Role',permission);
-            body=MessageBody(data);
-            show(body);
-            request_message = RequestMessage(method,header,body);
-            show(request_message);
-            serveradr = string(bst_get('UrlAdr'));
-            url=strcat(serveradr,"/group/changerole");
-            disp(url);
-            try
-                [resp,~,hist]=send(request_message,URI(url));
-                status = resp.StatusCode;
-                txt=char(status);
-                if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-                    content = resp.Body;
-                    show(content);
-                    java_dialog('msgbox', 'Change role successfully!');
-                    UpdateMembersList();
-                elseif strcmp(txt,'401')==1 || strcmp(txt,'Unauthorized')==1
-                    java_dialog('warning', 'Sorry. Your do not have permission!');
-                else
-                    java_dialog('error', txt);
-                end
-            catch
-                java_dialog('warning', 'Change role failed! Check your url!');
+            data = struct('GroupName', group, ...
+                'UserEmail', member, ...
+                'Role', permission);
+            [resp, status] = HTTP_request('group/changerole', 'POST', data);
+            if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
+                java_dialog('msgbox', 'Changed role successfully!');
+                UpdateMembersList();
+            elseif strcmp(status,'401')==1 || strcmp(status,'Unauthorized')==1
+                java_dialog('warning', 'Sorry. You do not have permission!');
+            else
+                java_dialog('error', status);
             end
         end
     end
@@ -266,108 +239,33 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
     %% ===== BUTTON: REMOVE MEMBER =====
     function ButtonRemoveMember_Callback(varargin)
         member = ExtractMemberName(jListMembers.getSelectedValue());
-        group=jListGroups.getSelectedValue();
+        group = jListGroups.getSelectedValue();
         if isempty(member)
             return
         end
-        import matlab.net.*;
-        import matlab.net.http.*;
 
-        type1 = MediaType('text/*');
-        type2 = MediaType('application/json','q','.5');
-        acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-        h1 = HeaderField('Content-Type','application/json');
-        h2 = HeaderField('sessionid',bst_get('SessionId'));
-        h3 = HeaderField('deviceid',bst_get('DeviceId'));
-        header = [acceptField,h1,h2,h3];
-        method = RequestMethod.POST;
-
-        data = struct('GroupName',group,'UserEmail',member);
-        body=MessageBody(data);
-        show(body);
-        request_message = RequestMessage(method,header,body);
-        show(request_message);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/group/removeuser");
-        disp(url);
-        try
-            [resp,~,hist]=send(request_message,URI(url));
-            status = resp.StatusCode;
-            txt=char(status);
-            if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-                content = resp.Body;
-                show(content);
-                java_dialog('msgbox', 'Remove group member successfully!');
-                UpdateMembersList();
-            elseif strcmp(txt,'401')==1 || strcmp(txt,'Unauthorized')==1
-                java_dialog('warning', 'Sorry. Your do not have permission!');
-            else
-                java_dialog('error', txt);
-            end
-        catch
-            java_dialog('warning', 'Remove group member failed! Check your url!');
+        data = struct('GroupName', group, 'UserEmail', member);        
+        [resp, status] = HTTP_request('group/removeuser', 'POST', data);
+        
+        if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
+            java_dialog('msgbox', 'Removed group member successfully!');
+            UpdateMembersList();
+        elseif strcmp(status,'401')==1 || strcmp(status,'Unauthorized')==1
+            java_dialog('warning', 'Sorry. You do not have permission!');
+        else
+            java_dialog('error', status);
         end
     end
 
     %% ===== LOAD GROUPS =====
     function groups = LoadGroups()
-       %{
-        import matlab.net.*;
-        import matlab.net.http.*;
-        groups = cell(0);
-
-        type1 = MediaType('text/*');
-        type2 = MediaType('application/json','q','.5');
-        acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-        h1 = HeaderField('Content-Type','application/json');
-        h2 = HeaderField('sessionid',bst_get('SessionId'));
-        h3 = HeaderField('deviceid',bst_get('DeviceId'));
-        header = [acceptField,h1,h2,h3];
-        method = RequestMethod.POST;
-        data = struct('start',0,'count',100, 'order', 0);
-        body=MessageBody(data);
-        show(body);
-        request_message = RequestMessage(method,header,body);
-        show(request_message);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/user/listgroups");
-        disp(url);
-        gui_hide('Preferences');
-        try
-            [resp,~,hist]=send(request_message,URI(url));
-            status = resp.StatusCode;
-            txt=char(status);
-            if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-                content = resp.Body;
-                show(content);
-                responseData = jsondecode(content.Data);
-                if(size(responseData) > 0)
-                    groups = cell(size(responseData));
-                    for i = 1 : size(responseData)
-                        groups{i} = responseData(i).name;
-                    end
-                end
-                %UpdatePanel();
-                disp('Load user groups successfully!');
-                %java_dialog('msgbox', 'Load user groups successfully!');
-            else
-                java_dialog('error', txt);
-            end
-        catch
-            java_dialog('warning', 'Load user groups failed! Check your url!');
-        end
-        %}
-        
         groups = cell(0);
         data = struct('start',0,'count',100, 'order', 0);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/user/listgroups");
         gui_hide('Preferences');
-        [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
-        disp(strcmp(status,"Session unavailable"));
+        [response,status] = HTTP_request('user/listgroups', 'POST', data, 'Default', 1);
         if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
             java_dialog('warning',status);
-            if strcmp(status,"Session unavailable")==1
+            if strcmp(status,'Session unavailable')==1
                 gui_show('panel_options', 'JavaWindow', 'Brainstorm preferences', [], 1, 0, 0);
             end
         else
@@ -381,77 +279,10 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                 end
             end
             disp('Load user groups successfully!');
-        end   
-        %groups = {'NeuroSPEED', 'OMEGA', 'Ste-Justine Project'};
+        end
     end
     %% ===== LOAD MEMBERS =====
     function [members, permissions] = LoadMembers(group)
-        %{
-        import matlab.net.*;
-        import matlab.net.http.*;
-        if isempty(group)
-            members = [];
-            permissions = [];
-            return
-        end
-
-        type1 = MediaType('text/*');
-        type2 = MediaType('application/json','q','.5');
-        acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-        h1 = HeaderField('Content-Type','application/json');
-        h2 = HeaderField('sessionid',bst_get('SessionId'));
-        h3 = HeaderField('deviceid',bst_get('DeviceId'));
-        header = [acceptField,h1,h2,h3];
-        method = RequestMethod.POST;
-        data = struct('name',group);
-        body=MessageBody(data);
-        show(body);
-        request_message = RequestMessage(method,header,body);
-        show(request_message);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/group/detail");
-        
-        disp(url);
-        gui_hide('Preferences');
-        try
-            [resp,~,hist]=send(request_message,URI(url));
-            status = resp.StatusCode;
-            txt=char(status);
-            if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-                content = resp.Body;
-                show(content);
-                responseData = jsondecode(content.Data);
-                if(size(responseData) > 0)
-                    members = cell(size(responseData(1).users));
-                    permissions = cell(size(responseData(1).users));
-                    for i = 1 : size(responseData(1).users)
-                        firstname = responseData(1).users(i).firstname;
-                        lastname = responseData(1).users(i).lastname;
-                        email=responseData(1).users(i).email;
-                        privilege = responseData(1).users(i).privilege;
-                        name=strcat(firstname," ");
-                        name=strcat(name,lastname);
-                        name=strcat(name," (");
-                        name=strcat(name,email);
-                        name=strcat(name,")")
-                        members{i} = string(name);
-                        disp(members{i});
-                        if privilege==1
-                            permissions{i}='manager'
-                        else
-                            permissions{i}='member'
-                        end
-                    end
-                end
-                %UpdatePanel();
-%                 java_dialog('msgbox', 'Load group member successfully!');
-            else
-                java_dialog('error', txt);
-            end
-        catch
-            java_dialog('warning', 'Load groups member failed! Check your url!');
-        end
-        %}
         if isempty(group)
             members = [];
             permissions = [];
@@ -459,19 +290,15 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
         end
         
         data = struct('name',group);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/group/detail");
         gui_hide('Preferences');
-        [response,status] = bst_call(@HTTP_request,'POST','Default',data,url,1);
+        [response,status] = HTTP_request('/group/detail', 'POST', data, 'Default', 1);
         if strcmp(status,'200')~=1 && strcmp(status,'OK')~=1
             java_dialog('warning',status);
-        elseif strcmp(status,"Session unavailable")==1
-            disp(111)
+        elseif strcmp(status,'Session unavailable')==1
             gui_show('Preferences')
         else
-            content=response.Body;                      
-            show(content);
-            responseData = jsondecode(content.Data);
+            content=response.Body;
+            responseData = bst_jsondecode(char(content.Data));
             if(size(responseData) > 0)
                 members = cell(size(responseData(1).users));
                 permissions = cell(size(responseData(1).users));
@@ -480,67 +307,44 @@ function [bstPanelNew, panelName] = CreatePanel() %#ok<DEFNU>
                     lastname = responseData(1).users(i).lastname;
                     email=responseData(1).users(i).email;
                     privilege = responseData(1).users(i).privilege;
-                    name=strcat(firstname," ");
+                    name=strcat(firstname,' ');
                     name=strcat(name,lastname);
-                    name=strcat(name," (");
+                    name=strcat(name,' (');
                     name=strcat(name,email);
-                    name=strcat(name,")")
+                    name=strcat(name,')');
                     members{i} = string(name);
                     disp(members{i});
                     if privilege==1
-                        permissions{i}='manager'
+                        permissions{i}='manager';
                     else
-                        permissions{i}='member'
+                        permissions{i}='member';
                     end
                 end
             end
-            disp('Load user groups successfully!');
+            disp('Loaded user groups successfully!');
         end
 
     end
     %% ===== ADD MEMBER TO GROUP =====
     function [res, error] = AddMember(group, member)
-        import matlab.net.*;
-        import matlab.net.http.*;
         error = [];
         res=1;
         
-        type1 = MediaType('text/*');
-        type2 = MediaType('application/json','q','.5');
-        acceptField = matlab.net.http.field.AcceptField([type1 type2]);
-        h1 = HeaderField('Content-Type','application/json');
-        h2 = HeaderField('sessionid',bst_get('SessionId'));
-        h3 = HeaderField('deviceid',bst_get('DeviceId'));
-        header = [acceptField,h1,h2,h3];
-        method = RequestMethod.POST;
         if strcmp(member(2),'Manager')==1
-            permission=1
+            permission = 1;
         else
-            permission=2
+            permission = 2;
         end
-        data = struct('GroupName',group,'UserEmail',member(1), 'Privilege', permission);
-        body=MessageBody(data);
-        show(body);
-        request_message = RequestMessage(method,header,body);
-        show(request_message);
-        serveradr = string(bst_get('UrlAdr'));
-        url=strcat(serveradr,"/group/adduser");
-        disp(url);
-        try
-            [resp,~,hist]=send(request_message,URI(url));
-            status = resp.StatusCode;
-            txt=char(status);
-            if strcmp(status,'200')==1 ||strcmp(txt,'OK')==1
-                content = resp.Body;
-                show(content);
-                java_dialog('msgbox', 'Add group member successfully!');
-            else
-                java_dialog('error', txt);
-            end
-        catch
-            java_dialog('warning', 'Add group member failed! Check your url!');
+        data = struct('GroupName', group, ...
+            'UserEmail', member(1), ...
+            'Privilege', permission);
+        
+        [resp, status] = HTTP_request('group/adduser', 'POST', data);
+        if strcmp(status,'200')==1 ||strcmp(status,'OK')==1
+            java_dialog('msgbox', 'Added group member successfully!');
+        else
+            java_dialog('error', txt);
         end
-
     end
 end
 
