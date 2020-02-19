@@ -2104,6 +2104,16 @@ function TessInfo = UpdateOverlayCube(hFig, iTess)
             SurfaceFile = GlobalData.DataSet(iDS).Results(iResult).SurfaceFile;
             % Check source grid type
             isVolumeGrid = ismember(GlobalData.DataSet(iDS).Results(iResult).HeadModelType, {'volume', 'mixed'});
+            % Build OverlayGrid HERE for calcium
+            if ~isempty(strfind(GlobalData.DataSet(iDS).Results(iResult).Comment, 'calcium'))
+                volDims = max(GlobalData.DataSet(iDS).Results(iResult).GridLoc, [], 1) * 1000;
+                if volDims(3) == 2
+                    OverlayCube = reshape(TessInfo(iTess).Data, volDims(1), volDims(2));
+                    OverlayCube = cat(3, OverlayCube, OverlayCube);
+                else
+                    OverlayCube = reshape(TessInfo(iTess).Data, volDims);
+                end
+            end
         case 'Timefreq'
             % Get loaded timefreq file
             [iDS, iTf] = bst_memory('GetDataSetTimefreq', TessInfo(iTess).DataSource.FileName);
