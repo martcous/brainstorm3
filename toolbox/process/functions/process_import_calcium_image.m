@@ -119,6 +119,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         bst_progress('inc', 1);
     end
     avgSlice = reshape(mean(dataMatrix, 2), size(firstSlice));
+    mipSlice = max(dataMatrix, [], 2);
     
     % Create "MRI" structure from average slice
     bst_progress('start', 'Import calcium image', 'Creating MRI object...');
@@ -126,7 +127,11 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     
     % Create "Source" structure from whole data
     bst_progress('start', 'Import calcium image', 'Creating source object...');
-    OutputFiles{end + 1} = SaveCalciumSource(FileName, sSubject, dataMatrix, size(firstSlice), srate);
+    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'Raw calcium image', sSubject, dataMatrix, size(firstSlice), srate);
+    
+    % Create "Source" structure for MIP
+    bst_progress('start', 'Import calcium image', 'Creating MIP object...');
+    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(firstSlice), srate);
     
     bst_progress('stop');
 end
@@ -215,7 +220,7 @@ function SaveCalciumMri(FileName, slice, sSubject, iSubject)
     bst_memory('UnloadMri', BstMriFile);
 end
 
-function OutputFile = SaveCalciumSource(rawFileName, sSubject, dataMatrix, volDims, sRate)
+function OutputFile = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate)
     [nSources, nSamples] = size(dataMatrix);
 
     % Output filename
@@ -239,12 +244,19 @@ function OutputFile = SaveCalciumSource(rawFileName, sSubject, dataMatrix, volDi
     GridLoc(:,2) = Y(:);
     GridLoc(:,3) = 2;
     GridLoc = GridLoc / 1000;
+    
+    % Build time samples
+    if nSamples > 1
+        Time = linspace(0, nSamples / sRate, nSamples);
+    else
+        Time = [0, 1e-3];
+    end
 
     % ===== CREATE FILE STRUCTURE =====
     ResultsMat = db_template('resultsmat');
     ResultsMat.ImageGridAmp  = dataMatrix;
-    ResultsMat.Comment       = 'Raw calcium image';
-    ResultsMat.Time          = linspace(0, nSamples / sRate, nSamples);
+    ResultsMat.Comment       = comment;
+    ResultsMat.Time          = Time;
     ResultsMat.HeadModelType = 'volume';
     ResultsMat.GridLoc       = GridLoc;
     ResultsMat.nAvg          = 1;
