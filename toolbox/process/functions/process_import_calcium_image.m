@@ -125,13 +125,18 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     bst_progress('start', 'Import calcium image', 'Creating MRI object...');
     SaveCalciumMri(FileName, avgSlice, sSubject, iSubject);
     
+    % Create "Surface" structure
+    bst_progress('text', 'Creating surface object...');
+    SurfaceFile = SaveCalciumSurface(FileName, size(firstSlice), sSubject, iSubject);
+    
     % Create "Source" structure from whole data
-    bst_progress('start', 'Import calcium image', 'Creating source object...');
-    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'Raw calcium image', sSubject, dataMatrix, size(firstSlice), srate);
+    bst_progress('text', 'Creating source object...');
+    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'Raw calcium image', sSubject, dataMatrix, size(firstSlice), srate, SurfaceFile);
     
     % Create "Source" structure for MIP
-    bst_progress('start', 'Import calcium image', 'Creating MIP object...');
-    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(firstSlice), srate);
+    bst_progress('text', 'Creating MIP object...');
+    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(firstSlice), srate, SurfaceFile);
+    
     
     bst_progress('stop');
 end
@@ -220,7 +225,67 @@ function SaveCalciumMri(FileName, slice, sSubject, iSubject)
     bst_memory('UnloadMri', BstMriFile);
 end
 
-function OutputFile = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate)
+function SurfaceFile = SaveCalciumSurface(FileName, volDims, sSubject, iSubject)
+    % Build new surface
+    sSurf = db_template('surfacemat');
+    sSurf.Comment  = 'Calcium surface';
+    
+    % Build Vertices
+    [X,Y] = ndgrid(1:volDims(1), 1:volDims(2));
+    sSurf.Vertices = zeros(prod(volDims), 3);
+    sSurf.Vertices(:,1) = X(:);
+    sSurf.Vertices(:,2) = Y(:);
+    sSurf.Vertices(:,3) = 2;
+    sSurf.Vertices = sSurf.Vertices / 1000;
+    sSurf.VertNormals = zeros(prod(volDims), 3);
+    sSurf.VertNormals(:,3) = 1;
+    sSurf.SulciMap = zeros(prod(volDims), 1);
+    
+    % Build Faces
+    sSurf.Faces = zeros(2 * prod(volDims - 1), 3);
+    iFace = 1;
+    iVert = 1;
+    for x = 1:volDims(1)-1
+        for y = 1:volDims(2)-1
+            sSurf.Faces(iFace, :) = [iVert, iVert + 1, iVert + volDims(2)];
+            sSurf.Faces(iFace + 1, :) = [iVert + 1, iVert + volDims(2), iVert + volDims(2) + 1];
+            iVert = iVert + 1;
+            iFace = iFace + 2;
+        end
+    end
+    
+    % Build interpolation matrix
+    nVertices = prod(volDims);
+    sSurf.tess2mri_interp = [speye(nVertices); speye(nVertices)];
+    
+    % Make sure name in database is unique
+    iSurface = length(sSubject.Surface);
+    if iSurface > 0
+        allComments = {sSubject.Surface.Comment};
+        SurfComment = sSurf.Comment;
+        iSuffix = 2;
+        while ismember(SurfComment, allComments)
+            SurfComment = [sSurf.Comment ' (' num2str(iSuffix) ')'];
+            iSuffix = iSuffix + 1;
+        end
+    end
+
+    % === SAVE NEW FILE ===
+    ProtocolInfo  = bst_get('ProtocolInfo');
+    subjectSubDir = bst_fileparts(sSubject.FileName);
+    
+    % Output filename
+    [tmp__, importedBaseName] = bst_fileparts(FileName);
+    SurfaceFile = bst_fullfile(subjectSubDir, ['tess_cortex_calcium_' importedBaseName '.mat']);
+    NewTessFile = bst_fullfile(ProtocolInfo.SUBJECTS, SurfaceFile);
+    NewTessFile = file_unique(NewTessFile);
+    % Save file back
+    bst_save(NewTessFile, sSurf, 'v7');
+    % Register this file in Brainstorm database
+    db_add_surface(iSubject, NewTessFile, sSurf.Comment);
+end
+
+function OutputFile = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate, SurfaceFile)
     [nSources, nSamples] = size(dataMatrix);
 
     % Output filename
@@ -258,6 +323,7 @@ function OutputFile = SaveCalciumSource(rawFileName, comment, sSubject, dataMatr
     ResultsMat.Comment       = comment;
     ResultsMat.Time          = Time;
     ResultsMat.HeadModelType = 'volume';
+    ResultsMat.SurfaceFile   = SurfaceFile;
     ResultsMat.GridLoc       = GridLoc;
     ResultsMat.nAvg          = 1;
     % History
