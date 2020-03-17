@@ -537,6 +537,37 @@ for iFile = 1:length(LabelFiles)
                 Messages = [Messages, fBase, ':' 10 'Could not match vertex labels and label description file.' 10];
                 continue;
             end
+            
+        % ===== Suite2P ROIs (calcium imaging) =====
+        case 'SUITE2P'
+            MatData = load(LabelFiles{iFile});
+            numRegions = size(MatData.iscell, 1);
+            numCells   = sum(MatData.iscell(:, 1));
+            labelSize = length(num2str(numCells));
+            
+            for iRegion = 1:numRegions
+                if MatData.iscell(iRegion, 1)
+                    % Extract dimensions
+                    dims = max(GridLoc) * 1000;
+                    iVertices = dims(1) * (MatData.stat{iRegion}.ypix - 1) + MatData.stat{iRegion}.xpix;
+                                        
+                    % New scout index
+                    iScout = length(sAtlas.Scouts) + 1;
+                    
+                    % Extract region name
+                    label = num2str(iScout);
+                    while length(label) < labelSize
+                        label = ['0' label];
+                    end
+                    
+                    sAtlas.Scouts(iScout).Vertices = double(iVertices);
+                    sAtlas.Scouts(iScout).Label    = label;
+                    sAtlas.Scouts(iScout).Color    = rand(1,3);
+                    sAtlas.Scouts(iScout).Function = 'Mean';
+                    sAtlas.Scouts(iScout).Region   = 'UU';
+                    
+                end
+            end
 
         % ===== Unknown file =====
         otherwise
