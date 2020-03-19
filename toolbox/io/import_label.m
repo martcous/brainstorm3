@@ -549,7 +549,7 @@ for iFile = 1:length(LabelFiles)
                 if MatData.iscell(iRegion, 1)
                     % Extract dimensions
                     dims = max(GridLoc) * 1000;
-                    iVertices = dims(1) * (MatData.stat{iRegion}.ypix - 1) + MatData.stat{iRegion}.xpix;
+                    iVertices = dims(1) * MatData.stat{iRegion}.ypix + MatData.stat{iRegion}.xpix;
                                         
                     % New scout index
                     iScout = length(sAtlas.Scouts) + 1;

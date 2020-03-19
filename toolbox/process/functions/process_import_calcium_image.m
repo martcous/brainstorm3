@@ -104,7 +104,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % Read image metadata
     imgInfo = imfinfo(FileName);
     numImgs = size(imgInfo, 1);
-    firstSlice = imread(FileName, 1);
+    firstSlice = imread(FileName, 1)';
     
     % Create source object
     numSources = numel(firstSlice);
@@ -114,7 +114,7 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
     % Read image
     bst_progress('start', 'Import calcium image', 'Reading image...', 0, numImgs);
     for iImg = 1:numImgs
-        I = double(imread(FileName, iImg));
+        I = double(imread(FileName, iImg)');
         dataMatrix(:, iImg) = I(:);
         bst_progress('inc', 1);
     end
