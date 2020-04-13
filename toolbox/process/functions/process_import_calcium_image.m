@@ -53,7 +53,8 @@ function sProcess = GetDescription() %#ok<DEFNU>
         'ImportData', ...                      % LastUsedDir: {ImportData,ImportChannel,ImportAnat,ExportChannel,ExportData,ExportAnat,ExportProtocol,ExportImage,ExportScript}
         'single', ...                          % Selection mode: {single,multiple}
         'files', ...                           % Selection mode: {files,dirs,files_and_dirs}
-        {{'.tif'}, 'TIFF image (*.tif)', 'TIFF'}, ... % Get all the available file formats
+        {{'.tif'}, 'TIFF image (*.tif)', 'TIFF'; ... % Get all the available file formats
+         {'.mat'}, 'Suite2P Matlab output (Fall.mat)', 'SUITE2P'}, ... 
         'DataIn'};                             % DefaultFormats
     % Option: Sampling rate
     sProcess.options.samplingrate.Comment = 'Original sampling rate:';
@@ -101,42 +102,76 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
         [sSubject, iSubject] = db_add_subject(SubjectName);
     end
     
-    % Read image metadata
-    imgInfo = imfinfo(FileName);
-    numImgs = size(imgInfo, 1);
-    firstSlice = imread(FileName, 1)';
-    
-    % Create source object
-    numSources = numel(firstSlice);
-    numSamples = numImgs;
-    dataMatrix = zeros(numSources, numSamples); %TODO: numSources x numSamples
-    
-    % Read image
-    bst_progress('start', 'Import calcium image', 'Reading image...', 0, numImgs);
-    for iImg = 1:numImgs
-        I = double(imread(FileName, iImg)');
-        dataMatrix(:, iImg) = I(:);
-        bst_progress('inc', 1);
+    switch FileFormat
+        case 'TIFF'
+            % Read image metadata
+            imgInfo = imfinfo(FileName);
+            numImgs = size(imgInfo, 1);
+            firstSlice = imread(FileName, 1)';
+            
+            % Create source object
+            numSources = numel(firstSlice);
+            numSamples = numImgs;
+            dataMatrix = zeros(numSources, numSamples);
+
+            % Read image
+            bst_progress('start', 'Import calcium image', 'Reading image...', 0, numImgs);
+            for iImg = 1:numImgs
+                I = double(imread(FileName, iImg)');
+                dataMatrix(:, iImg) = I(:);
+                bst_progress('inc', 1);
+            end
+            avgSlice = reshape(mean(dataMatrix, 2), size(firstSlice));
+            mipSlice = max(dataMatrix, [], 2);
+
+            % Create "MRI" structure from average slice
+            bst_progress('start', 'Import calcium image', 'Creating MRI object...');
+            SaveCalciumMri(FileName, avgSlice, sSubject, iSubject);
+
+            % Create "Surface" structure
+            bst_progress('text', 'Creating surface object...');
+            SurfaceFile = SaveCalciumSurface(FileName, size(firstSlice), sSubject, iSubject);
+
+            % Create "Source" structure from whole data
+            bst_progress('text', 'Creating source object...');
+            OutputFiles{end + 1} = SaveCalciumSource(FileName, 'Raw calcium image', sSubject, dataMatrix, size(firstSlice), srate, SurfaceFile);
+
+            % Create "Source" structure for MIP
+            bst_progress('text', 'Creating MIP object...');
+            OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(firstSlice), srate, SurfaceFile);
+
+        case 'SUITE2P'
+            imgInfo = load(FileName);
+            
+            % Extract and normalize average slice
+            avgSlice = double(imgInfo.ops.meanImg);
+            avgMin = min(avgSlice(:));
+            avgMax = max(avgSlice(:));
+            avgSlice = (avgSlice - avgMin) / (avgMax - avgMin);
+            
+            % Extract and normalize maximum projection slice
+            mipSlice = double(imgInfo.ops.max_proj);
+            mipMin = min(mipSlice(:));
+            mipMax = max(mipSlice(:));
+            mipSlice = (mipSlice - mipMin) / (mipMax - mipMin);
+            mipSlice = reshape(mipSlice, numel(mipSlice), 1);
+            
+            % Create "MRI" structure from average slice
+            bst_progress('start', 'Import calcium image', 'Creating MRI object...');
+            SaveCalciumMri(FileName, avgSlice, sSubject, iSubject);
+            
+            % Create "Surface" structure
+            bst_progress('text', 'Creating surface object...');
+            SurfaceFile = SaveCalciumSurface(FileName, size(avgSlice), sSubject, iSubject);
+            
+            % Create "Source" structure for MIP
+            bst_progress('text', 'Creating MIP object...');
+            OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(avgSlice), srate, SurfaceFile);
+            
+        otherwise
+            bst_report('Error', sProcess, [], 'Unsupported file format.');
+            return
     end
-    avgSlice = reshape(mean(dataMatrix, 2), size(firstSlice));
-    mipSlice = max(dataMatrix, [], 2);
-    
-    % Create "MRI" structure from average slice
-    bst_progress('start', 'Import calcium image', 'Creating MRI object...');
-    SaveCalciumMri(FileName, avgSlice, sSubject, iSubject);
-    
-    % Create "Surface" structure
-    bst_progress('text', 'Creating surface object...');
-    SurfaceFile = SaveCalciumSurface(FileName, size(firstSlice), sSubject, iSubject);
-    
-    % Create "Source" structure from whole data
-    bst_progress('text', 'Creating source object...');
-    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'Raw calcium image', sSubject, dataMatrix, size(firstSlice), srate, SurfaceFile);
-    
-    % Create "Source" structure for MIP
-    bst_progress('text', 'Creating MIP object...');
-    OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(firstSlice), srate, SurfaceFile);
-    
     
     bst_progress('stop');
 end
