@@ -94,7 +94,7 @@ function bstPanelNew = CreatePanel() %#ok<DEFNU>
     jPanelNew.add(jPanelThreshold);
         
     %% ===== CONNECT: DISTANCE THRESHOLD =====
-    jPanelDistance = gui_river([0,0], [2,2,2,2], 'Distance Filtering (0 - 150 mm)');
+    jPanelDistance = gui_river([0,0], [2,2,2,2], 'Distance Filtering (0 - 1000 mm)');
         % Minimum Distance title
         jLabelMinimumDistance = gui_component('label', [], [], 'Min.', {JLabel.LEFT, java_scaled('dimension', 25, 22)});
         jPanelDistance.add('br', jLabelMinimumDistance);
@@ -482,7 +482,7 @@ function UpdatePanel(hFig)
             MaxIntensity = sprintf('%1.3f',ThresholdMinMax(2));
             ctrl.jPanelThreshold.get('Border').setTitle(['Intensity Thresh. (' MinIntensity ' - ' MaxIntensity ')']);
             MinDistance = num2str(0);
-            MaxDistance = num2str(150);
+            MaxDistance = num2str(1000);
             ctrl.jPanelDistance.get('Border').setTitle(['Distance Filtering (' MinDistance ' - ' MaxDistance 'mm)']);
 
             % Filter Distance Panel
@@ -1047,7 +1047,7 @@ function SetDistanceOptions(sOptions)
                 return;
             end
             % Refresh figure with new threshold
-            figure_connect('SetMeasureDistanceFilter', hFig, sOptions.MinDistanceThreshold, 150);
+            figure_connect('SetMeasureDistanceFilter', hFig, sOptions.MinDistanceThreshold, 1000);
             figure_connect('UpdateColormap', hFig);
         end
         % Release mutex

@@ -1671,7 +1671,7 @@ function LoadFigurePlot(hFig) %#ok<DEFNU>
     % Application specific display filter
     SetMeasureDisplayFilter(hFig, ones(size(DataPair,1), Refresh));
     % Min/Max distance filter
-    SetMeasureDistanceFilter(hFig, 20, 150, Refresh);
+    SetMeasureDistanceFilter(hFig, 20, 1000, Refresh);
     % Anatomy filter
     SetMeasureAnatomicalFilterTo(hFig, 0, Refresh);
     % Fiber filter
