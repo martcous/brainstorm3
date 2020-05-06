@@ -166,12 +166,15 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             
             % Create "Source" structure for MIP
             bst_progress('text', 'Creating MIP object...');
-            [OutputFiles{end + 1}, GridLoc] = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(avgSlice), srate, SurfaceFile);
+            [OutputFiles{end + 1}, iStudy, GridLoc] = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(avgSlice), srate, SurfaceFile);
             
             % Import ROIs as scouts
             bst_progress('text', 'Importing ROIs...');
             import_label(SurfaceFile, FileName, 0, GridLoc);
             
+            % Import processed data as matrix
+            bst_progress('text', 'Creating matrix object...');
+            SaveProcessedMatrix(FileName, imgInfo, iStudy, srate);
         otherwise
             bst_report('Error', sProcess, [], 'Unsupported file format.');
             return
@@ -329,7 +332,7 @@ function SurfaceFile = SaveCalciumSurface(FileName, volDims, sSubject, iSubject)
     db_add_surface(iSubject, NewTessFile, sSurf.Comment);
 end
 
-function [OutputFile, GridLoc] = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate, SurfaceFile)
+function [OutputFile, iStudy, GridLoc] = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate, SurfaceFile)
     [nSources, nSamples] = size(dataMatrix);
 
     % Output filename
@@ -400,3 +403,40 @@ function [OutputFile, GridLoc] = SaveCalciumSource(rawFileName, comment, sSubjec
 
     OutputFile = newResult.FileName;
 end
+
+function SaveProcessedMatrix(FileName, imgInfo, iStudy, srate)
+    sStudy = bst_get('Study', iStudy);
+
+    % Create empty matrix file structure
+    FileMat = db_template('matrixmat');
+    FileMat.Value       = imgInfo.F(logical(imgInfo.iscell(:,1)),:);
+    FileMat.Time        = (1:size(imgInfo.F,2)) / srate;
+    FileMat.Comment     = 'Suite2P Processed data';
+    
+    % Populate list of ROI names
+    numRegions = size(imgInfo.iscell, 1);
+    numCells   = sum(imgInfo.iscell(:, 1));
+    labelSize  = length(num2str(numCells));
+    FileMat.Description = cell(numCells,1);
+    iCell = 1;
+    for iRegion = 1:numRegions
+        if imgInfo.iscell(iRegion, 1)
+            label = num2str(iCell);
+            while length(label) < labelSize
+                label = ['0' label];
+            end
+            FileMat.Description{iCell} = label;
+            iCell = iCell + 1;
+        end
+    end
+    
+    % ===== SAVE FILE =====
+    % Output filename
+    [tmp, importedBaseName] = bst_fileparts(FileName);
+    MatrixFile = bst_process('GetNewFilename', bst_fileparts(sStudy.FileName), ['matrix_calcium_', bst_fileparts(importedBaseName)]);
+    % Save file
+    bst_save(MatrixFile, FileMat, 'v6');
+    % Register in database
+    db_add_data(iStudy, MatrixFile, FileMat);
+end
+
