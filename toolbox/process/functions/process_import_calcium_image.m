@@ -166,7 +166,11 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
             
             % Create "Source" structure for MIP
             bst_progress('text', 'Creating MIP object...');
-            OutputFiles{end + 1} = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(avgSlice), srate, SurfaceFile);
+            [OutputFiles{end + 1}, GridLoc] = SaveCalciumSource(FileName, 'MIP calcium image', sSubject, mipSlice, size(avgSlice), srate, SurfaceFile);
+            
+            % Import ROIs as scouts
+            bst_progress('text', 'Importing ROIs...');
+            import_label(SurfaceFile, FileName, 0, GridLoc);
             
         otherwise
             bst_report('Error', sProcess, [], 'Unsupported file format.');
@@ -276,6 +280,11 @@ function SurfaceFile = SaveCalciumSurface(FileName, volDims, sSubject, iSubject)
     sSurf.VertNormals(:,3) = 1;
     sSurf.SulciMap = zeros(prod(volDims), 1);
     
+    % Add volume atlas for ROIs
+    sSurf.Atlas(2) = db_template('atlas');
+    sSurf.Atlas(2).Name = ['Volume ' num2str(prod(volDims))];
+    sSurf.iAtlas = 2;
+    
     % Build Faces
     sSurf.Faces = zeros(2 * prod(volDims - 1), 3);
     iFace = 1;
@@ -320,7 +329,7 @@ function SurfaceFile = SaveCalciumSurface(FileName, volDims, sSubject, iSubject)
     db_add_surface(iSubject, NewTessFile, sSurf.Comment);
 end
 
-function OutputFile = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate, SurfaceFile)
+function [OutputFile, GridLoc] = SaveCalciumSource(rawFileName, comment, sSubject, dataMatrix, volDims, sRate, SurfaceFile)
     [nSources, nSamples] = size(dataMatrix);
 
     % Output filename

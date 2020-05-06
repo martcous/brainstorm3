@@ -75,9 +75,14 @@ else
         case '.annot',  FileFormat = 'FS-ANNOT';
         case '.label',  FileFormat = 'FS-LABEL-SINGLE';
         case '.gii',    FileFormat = 'GII-TEX';
-        case '.mat',    FileFormat = 'BST';
         case '.dfs',    FileFormat = 'DFS';
         case '.dset',   FileFormat = 'DSET';
+        case '.mat'
+            if ~isempty(strfind(lower(fBase), 'fall'))
+                FileFormat = 'SUITE2P';
+            else
+                FileFormat = 'BST';
+            end
         otherwise,      Messages = 'Unknown file extension.'; return;
     end
 end
