@@ -1636,6 +1636,7 @@ switch (lower(action))
                                 gui_component('MenuItem', jMenu2d, [], channelTypeDisplay, IconLoader.ICON_2DLAYOUT, [], @(h,ev)view_topography(GetAllFilenames(bstNodes, 'data', 1, 0), mod2D{iMod}, '2DLayout'));
                             end
                         end
+                        gui_component('MenuItem', jPopup, [], 'Edit Annotations', IconLoader.ICON_EDIT, [],  @(h,ev)gui_edit_trial_annot(filenameRelative));
                         AddSeparator(jPopup);
                     end
 
