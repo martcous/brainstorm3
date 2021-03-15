@@ -819,19 +819,19 @@ function DisplayFigurePopup(hFig)
             % === MODIFY NODE AND LINK SIZE (Mar 2021)===
             jPanelModifiers = gui_river([0 0], [0, 29, 0, 0]);
             % uses node size to update text and slider
-            NodeSize = GetNodeSize(hFig);
+            Options = bst_get('ConnectGraphOptions');
             % Label
             gui_component('label', jPanelModifiers, '', 'Node & label size');
             % Slider
             jSliderContrast = JSlider(1,15); % changed Jan 3 2020 (uses factor of 2 for node sizes 0.5 to 5.0 with increments of 0.5 in actuality)
-            jSliderContrast.setValue(round(NodeSize * 2));
+            jSliderContrast.setValue(round(Options.NodeLabelSize * 2));
             jSliderContrast.setPreferredSize(java_scaled('dimension',100,23));
             %jSliderContrast.setToolTipText(tooltipSliders);
             jSliderContrast.setFocusable(0);
             jSliderContrast.setOpaque(0);
             jPanelModifiers.add('tab hfill', jSliderContrast);
             % Value (text)
-            jLabelContrast = gui_component('label', jPanelModifiers, '', sprintf('%.0f', round(NodeSize * 2)));
+            jLabelContrast = gui_component('label', jPanelModifiers, '', sprintf('%.0f', round(Options.NodeLabelSize * 2)));
             jLabelContrast.setPreferredSize(java_scaled('dimension',50,23));
             jLabelContrast.setHorizontalAlignment(JLabel.LEFT);
             jPanelModifiers.add(jLabelContrast);
@@ -3203,12 +3203,14 @@ function ToggleLobeLabels(hFig)
 end
 %% ===== NODE & LABEL SIZE IN SIGNLE FUNCTION =====
 function SetNodeLabelSize(hFig, NodeSize, LabelSize)
-     if isempty(NodeSize)
-        NodeSize = 5; % default for 'on' is 5, default for off is '6'
+    Options = bst_get('ConnectGraphOptions');
+    if ~isempty(NodeSize)
+        Options.NodeLabelSize = NodeSize;
     end
-    if isempty(LabelSize)
-        LabelSize = 7; % set to default -3
+    if ~isempty(LabelSize)
+        Options.NodeLabelSize = LabelSize;
     end
+    bst_set('ConnectGraphOptions', Options);
 
     AllNodes = getappdata(hFig,'AllNodes');
     
@@ -3217,9 +3219,6 @@ function SetNodeLabelSize(hFig, NodeSize, LabelSize)
         set(node.NodeMarker, 'MarkerSize', NodeSize);
         set(node.TextLabel, 'FontSize', LabelSize);
     end     
-    
-    setappdata(hFig, 'NodeSize', NodeSize);
-    setappdata(hFig, 'LabelSize', LabelSize);
 end
 
      % NOTE: JAN 2021
@@ -3855,24 +3854,20 @@ end
 function SelectNode(hFig,node,isSelected)
     %disp('Entered SelectNode');
     
-    % added March 2021: user can now adjust node size as desired
-    nodeSize = getappdata(hFig, 'NodeSize');
-    if (isempty(nodeSize))
-        nodeSize = 5;
-    end
+    Options = bst_get('ConnectGraphOptions');
     
     if isSelected % node is SELECTED ("ON")
         % return to original node colour, shape, and size
         node.NodeMarker.Marker = 'o';
         node.NodeMarker.Color = node.NodeMarker.MarkerFaceColor;
-        node.NodeMarker.MarkerSize = nodeSize;
+        node.NodeMarker.MarkerSize = Options.NodeLabelSize;
         node.TextLabel.Color =  ~GetBackgroundColor(hFig);
     else % node is NOT selected ("OFF")
         % display as a grey 'X' (slightly bigger/bolded to allow for easier clicking shape)
         % node labels also greyed out
         node.NodeMarker.Marker = 'x';
         node.NodeMarker.Color =  [0.5 0.5 0.5]; % grey marker
-        node.NodeMarker.MarkerSize = nodeSize + 1;
+        node.NodeMarker.MarkerSize = Options.NodeLabelSize + 1;
         node.TextLabel.Color = [0.5 0.5 0.5]; % grey label
     end
 end

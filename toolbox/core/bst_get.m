@@ -3209,6 +3209,19 @@ switch contextName
             'iMontage',     1);
         argout1 = FillMissingFields(contextName, defPref);
         
+    case 'ConnectGraphOptions'
+        defPref = struct(...
+            'NodeLabelSize', 5, ...
+            'LinkSize', 3, ...
+            'LinkTransparency', 0);
+        % If we have an additional argument, get the default values
+        if nargin > 1
+            argout1 = defPref;
+        % Otherwise, get the saved values
+        else
+            argout1 = FillMissingFields(contextName, defPref);
+        end
+        
     case 'NodelistOptions'
         defPref = struct(...
             'String', '', ...         % What to search for
