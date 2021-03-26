@@ -90,12 +90,16 @@ function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
                 tree_set_channelflag({sInputs.FileName}, Flagmode, ChannelList);    
             end   
         
-        case {'DetectFlat', 'ClearAllBad'} 
+        case {'DetectFlat'}           
             tree_set_channelflag({sInputs.FileName}, Flagmode);
+            
+        case {'ClearAllBad'}
+            if isInteractive
+                tree_set_channelflag({sInputs.FileName}, Flagmode);
+            else
+                tree_set_channelflag({sInputs.FileName}, [Flagmode,'NoWarning']);
+            end
     end 
     % Return all the files in input
     OutputFiles = {sInputs.FileName};
 end
-
-
-

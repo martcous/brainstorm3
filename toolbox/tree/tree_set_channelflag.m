@@ -5,6 +5,7 @@ function tree_set_channelflag(bstNodes, action, strChan)
 %         tree_set_channelflag(bstNodes, 'DetectFlat')  : Detect bad channels (values are all zeros)
 %         tree_set_channelflag(bstNodes, 'ClearBad')    : Set some the channels as good for all the data files
 %         tree_set_channelflag(bstNodes, 'ClearAllBad') : Set all the channels as good for all the data files
+%         tree_set_channelflag(bstNodes, 'ClearAllBadNoWarning') : Same as 'ClearAllBad', but Warning is not shown 
 %         tree_set_channelflag(bstNodes, 'ShowBad')     : Display all the bad channels (as text)
 %         tree_set_channelflag(DataFiles, action, strChan) : Pass the filenames and list of channels in argument (no gui)
 
@@ -264,7 +265,7 @@ for i = 1:length(iStudies)
             % Save file
             bst_save(DataFileFull, DataMat, 'v6', 1);
             
-        case 'clearallbad'
+        case {'clearallbad', 'clearallbadnowarning'}
             if (i == 1)
                 strReportTitle = 'Cleared bad channels (Subject/Condition/File):';
             end
