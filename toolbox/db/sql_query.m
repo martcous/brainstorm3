@@ -19,7 +19,7 @@ function result = sql_query(sqlConnection, type, table, data, condition, addQuer
 % For more information type "brainstorm license" at command prompt.
 % =============================================================================@
 %
-% Authors: Martin Cousineau, 2020
+% Authors: Martin Cousineau, 2020; Raymundo Cassani 2021
 
 % Set this to 1 if you want to print the query for debugging
 debug = 1;
@@ -63,10 +63,14 @@ else
 end
 
 switch type
-    case 'select'
+   case {'select', 'exist'}
         % Get fields to select
         allFields = 0;
         checkExistence = 0;
+        if strcmp(type, 'exist')
+            checkExistence = 1;
+            data = '1';
+        end
         if nargin < 4 || isempty(data)
             allFields = 1;
             dataQry = '*';
@@ -74,8 +78,6 @@ switch type
             dataQry = data;
             if strcmp(data, '*')
                 allFields = 1;
-            elseif strcmp(data, '1')
-                checkExistence = 1;
             else
                 data = {data};
             end
