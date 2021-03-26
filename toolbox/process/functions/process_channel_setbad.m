@@ -59,22 +59,10 @@ end
 
 %% ===== RUN =====
 function OutputFiles = Run(sProcess, sInputs) %#ok<DEFNU>
-    OutputFiles = {};
-    % Get options
-    BadList = sProcess.options.sensortypes.Value;
-    isInteractive = sProcess.options.isInteractive.Value;
-    if isempty(BadList) && ~isInteractive
-        bst_report('Error', sProcess, [], 'Empty list of bad channels.');
-        return
-    end
-    % Add bad channels
-    if isInteractive && isempty(BadList)
-        tree_set_channelflag({sInputs.FileName}, 'AddBad');
-    else
-        tree_set_channelflag({sInputs.FileName}, 'AddBad', BadList);
-    end
-    % Return all the files in input
-    OutputFiles = {sInputs.FileName};
+    % Set flagmode to: 'Mark some channels as bad...' 
+    sProcess.options.flagmode.Value = 1;
+    % Call TIME-FREQ process
+    OutputFiles = process_tree_channelflag('Run', sProcess, sInputs);
 end
 
 

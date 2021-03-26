@@ -2519,11 +2519,14 @@ end % END SWITCH( ACTION )
         end
         
         jMenu = gui_component('Menu', jPopup, [], 'Good/bad channels', IconLoader.ICON_GOODBAD, [], []);
-        gui_component('MenuItem', jMenu, [], 'Mark some channels as good...', IconLoader.ICON_GOOD, [], @(h,ev)tree_set_channelflag(bstNodes, 'ClearBad'));
-        gui_component('MenuItem', jMenu, [], 'Mark all channels as good',     IconLoader.ICON_GOOD, [], @(h,ev)tree_set_channelflag(bstNodes, 'ClearAllBad'));
+        gui_component('MenuItem', jMenu, [], 'Mark some channels as good...', IconLoader.ICON_GOOD, [], ...
+            @(h,ev)bst_process('CallProcess', 'process_tree_channelflag', DataFiles, [], 'sensortypes', [], 'isInteractive', 1, 'flagmode', 2));
+        gui_component('MenuItem', jMenu, [], 'Mark all channels as good',     IconLoader.ICON_GOOD, [], ...
+            @(h,ev)bst_process('CallProcess', 'process_tree_channelflag', DataFiles, [], 'sensortypes', [], 'isInteractive', 1, 'flagmode', 4));
         gui_component('MenuItem', jMenu, [], 'Mark some channels as bad...',  IconLoader.ICON_BAD,  [], ...
-            @(h,ev)bst_process('CallProcess', 'process_channel_setbad', DataFiles, [], 'sensortypes', [], 'isInteractive', 1));
-        gui_component('MenuItem', jMenu, [], 'Mark flat channels as bad',     IconLoader.ICON_BAD,  [], @(h,ev)tree_set_channelflag(bstNodes, 'DetectFlat'));
+            @(h,ev)bst_process('CallProcess', 'process_tree_channelflag', DataFiles, [], 'sensortypes', [], 'isInteractive', 1, 'flagmode', 1));
+        gui_component('MenuItem', jMenu, [], 'Mark flat channels as bad',     IconLoader.ICON_BAD,  [], ...
+            @(h,ev)bst_process('CallProcess', 'process_tree_channelflag', DataFiles, [], 'sensortypes', [], 'isInteractive', 1, 'flagmode', 3));
         gui_component('MenuItem', jMenu, [], 'View all bad channels',         IconLoader.ICON_BAD,  [], @(h,ev)tree_set_channelflag(bstNodes, 'ShowBad'));
     end
 %% ===== MENU: HEADMODEL =====
